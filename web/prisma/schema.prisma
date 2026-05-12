@@ -1,0 +1,261 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ATHLETE
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum Discipline {
+  RUNNING
+  CYCLING
+  SWIMMING
+  TRIATHLON
+}
+
+enum SubmissionStatus {
+  PENDING_AUTO_CHECK
+  PENDING_MANUAL_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum VerificationMode {
+  AUTO
+  SEMI_AUTO
+  MANUAL
+}
+
+enum ReviewDecision {
+  APPROVED
+  REJECTED
+  NEEDS_INFO
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String?      @unique
+  telegramId  String?      @unique
+  role        UserRole     @default(ATHLETE)
+  athlete     Athlete?
+  reviews     ManualReview[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Athlete {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  firstName        String
+  lastName         String
+  middleName       String?
+  birthDate        DateTime
+  gender           Gender
+  city             String?
+  seasonAgeGroup   String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissions      ResultSubmission[]
+  verifiedResults  VerifiedResult[]
+  rankingEntries   RankingEntry[]
+}
+
+model Season {
+  id              String             @id @default(cuid())
+  name            String             @unique
+  startDate       DateTime
+  endDate         DateTime
+  status          SeasonStatus       @default(DRAFT)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  submissions     ResultSubmission[]
+  verifiedResults VerifiedResult[]
+  rankingEntries  RankingEntry[]
+  scoreRules      ScoreRule[]
+}
+
+model EventCategory {
+  id                String      @id @default(cuid())
+  discipline        Discipline
+  categoryKey       String
+  label             String
+  basePointsDefault Int
+  description       String?
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  events            Event[]
+  scoreRules        ScoreRule[]
+  verifiedResults   VerifiedResult[]
+
+  @@unique([discipline, categoryKey])
+}
+
+model Event {
+  id              String             @id @default(cuid())
+  name            String
+  eventDate       DateTime
+  discipline      Discipline
+  distanceLabel   String
+  sourceUrl       String?
+  location        String?
+  categoryId      String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  category        EventCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  protocolRows    EventProtocolRow[]
+  submissions     ResultSubmission[]
+  verifiedResults VerifiedResult[]
+
+  @@index([eventDate, discipline])
+}
+
+model EventProtocolRow {
+  id                  String    @id @default(cuid())
+  eventId             String
+  athleteNameRaw      String
+  gender              Gender?
+  ageGroupRaw         String?
+  finishTimeRaw       String
+  finishTimeSeconds   Int?
+  placementOverall    Int?
+  placementInAgeGroup Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  event               Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model ResultSubmission {
+  id                String           @id @default(cuid())
+  athleteId         String
+  seasonId          String
+  eventId           String?
+  eventNameRaw      String
+  discipline        Discipline
+  distanceLabel     String
+  ageGroupClaimed   String
+  finishTimeRaw     String
+  finishTimeSeconds Int
+  protocolUrl       String?
+  bibNumber         String?
+  comment           String?
+  status            SubmissionStatus @default(PENDING_MANUAL_REVIEW)
+  adminNotes        String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  athlete           Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  season            Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  event             Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  verifiedResult    VerifiedResult?
+  reviews           ManualReview[]
+
+  @@index([athleteId, seasonId, status])
+}
+
+model VerifiedResult {
+  id                   String           @id @default(cuid())
+  athleteId            String
+  seasonId             String
+  submissionId         String           @unique
+  eventId              String
+  eventCategoryId      String?
+  ageGroupUsed         String
+  fifthPlaceTimeSeconds Int
+  lagPercent           Decimal          @db.Decimal(6, 2)
+  awardedPoints        Int
+  verificationMode     VerificationMode
+  scoreRuleId          String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  athlete              Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  season               Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  submission           ResultSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  event                Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventCategory        EventCategory?   @relation(fields: [eventCategoryId], references: [id], onDelete: SetNull)
+  scoreRule            ScoreRule        @relation(fields: [scoreRuleId], references: [id], onDelete: Restrict)
+}
+
+model ScoreRule {
+  id              String           @id @default(cuid())
+  seasonId        String
+  discipline      Discipline
+  categoryKey     String
+  eventCategoryId String?
+  basePoints      Int
+  formulaVersion  String           @default("v1")
+  activeFrom      DateTime?
+  activeTo        DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  season          Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  eventCategory   EventCategory?   @relation(fields: [eventCategoryId], references: [id], onDelete: SetNull)
+  verifiedResults VerifiedResult[]
+
+  @@index([seasonId, discipline, categoryKey])
+}
+
+model RankingEntry {
+  id                String    @id @default(cuid())
+  athleteId         String
+  seasonId          String
+  totalPoints       Int       @default(0)
+  rank              Int
+  scoredResultsCount Int      @default(0)
+  snapshotAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  athlete           Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  season            Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, seasonId])
+  @@index([seasonId, rank])
+}
+
+model ManualReview {
+  id            String           @id @default(cuid())
+  submissionId  String
+  reviewerId    String
+  decision      ReviewDecision
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  submission    ResultSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer      User             @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  entityType  String
+  entityId    String
+  action      String
+  payloadJson Json?
+  createdAt   DateTime @default(now())
+  actor       User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+}
