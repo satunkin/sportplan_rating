@@ -1,20 +1,37 @@
 import "dotenv/config";
+import nodemailer from "nodemailer";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+import {
+  getAppBaseUrl,
+  getDirectDatabaseUrl,
+  getRuntimeDatabaseUrl,
+  getSmtpConfig,
+  isLocalhostUrl,
+  isSmtpConfigured,
+} from "./lib/runtime-env.mjs";
 
 const blockers = [];
 const warnings = [];
 
-const databaseUrl = process.env.DATABASE_URL ?? "";
-const directUrl = process.env.DIRECT_URL ?? "";
-const appBaseUrl = process.env.APP_BASE_URL ?? "";
-const smtpHost = process.env.SMTP_HOST ?? "";
-const smtpPort = process.env.SMTP_PORT ?? "";
-const smtpUser = process.env.SMTP_USER ?? "";
-const smtpPass = process.env.SMTP_PASS ?? "";
-const smtpSecure = process.env.SMTP_SECURE ?? "";
+const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
+const runtimeDatabaseUrl = getRuntimeDatabaseUrl();
+const directUrl = getDirectDatabaseUrl();
+const appBaseUrl = getAppBaseUrl();
+const smtp = getSmtpConfig();
 const sessionSecret = process.env.SESSION_SECRET ?? "";
 const adminEmail = process.env.ADMIN_EMAIL ?? "";
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH ?? "";
 const adminAccessKey = process.env.ADMIN_ACCESS_KEY ?? "";
+const REQUIRED_TABLES = [
+  "_prisma_migrations",
+  "User",
+  "Athlete",
+  "ResultSubmission",
+  "VerifiedResult",
+  "RankingEntry",
+];
 
 if (!databaseUrl) {
   blockers.push("DATABASE_URL is missing.");
@@ -30,14 +47,11 @@ if (!sessionSecret) {
 
 if (!appBaseUrl) {
   blockers.push("APP_BASE_URL is missing.");
-} else if (
-  appBaseUrl.includes("localhost") ||
-  appBaseUrl.includes("127.0.0.1")
-) {
+} else if (isLocalhostUrl(appBaseUrl)) {
   blockers.push("APP_BASE_URL still points to localhost.");
 }
 
-if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpSecure) {
+if (!isSmtpConfigured()) {
   blockers.push(
     "SMTP config is incomplete. Need SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, and EMAIL_FROM.",
   );
@@ -60,6 +74,73 @@ if (!directUrl) {
     "DIRECT_URL is missing. Prisma CLI and migrations are safer with a direct PostgreSQL connection.",
   );
 }
+
+async function verifyDatabaseConnectivity() {
+  if (!runtimeDatabaseUrl || blockers.length > 0) {
+    return;
+  }
+
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString: runtimeDatabaseUrl,
+    }),
+  });
+
+  try {
+    await prisma.$queryRawUnsafe("SELECT 1");
+
+    const missingTables = [];
+
+    for (const tableName of REQUIRED_TABLES) {
+      try {
+        await prisma.$queryRawUnsafe(`SELECT 1 FROM "${tableName}" LIMIT 1`);
+      } catch {
+        missingTables.push(tableName);
+      }
+    }
+
+    if (missingTables.length > 0) {
+      blockers.push(
+        `Database connection works, but Prisma tables are missing: ${missingTables.join(", ")}. Run "npm run db:deploy" before deployment.`,
+      );
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown PostgreSQL error.";
+
+    blockers.push(`PostgreSQL connectivity check failed: ${message}`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+async function verifySmtpConnectivity() {
+  if (!isSmtpConfigured() || blockers.length > 0) {
+    return;
+  }
+
+  const transport = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass,
+    },
+  });
+
+  try {
+    await transport.verify();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown SMTP error.";
+
+    blockers.push(`SMTP connectivity check failed: ${message}`);
+  }
+}
+
+await verifyDatabaseConnectivity();
+await verifySmtpConnectivity();
 
 if (blockers.length === 0) {
   console.log("Deployment readiness check passed.");

@@ -111,13 +111,16 @@ Before the first hosted deploy:
 npm run deploy:check
 ```
 
-What must be ready for a real hosted environment:
+What `npm run deploy:check` now validates:
 - `DATABASE_URL` must point to PostgreSQL
 - `DIRECT_URL` should point to a direct PostgreSQL connection for Prisma CLI
 - `APP_BASE_URL` must point to the public website URL
 - `SESSION_SECRET` must be set
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM` must be configured
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` should be configured
+- the PostgreSQL server must be reachable with the runtime URL
+- the core Prisma-managed tables must already exist
+- the SMTP server must accept a verification handshake
 
 Health endpoint:
 

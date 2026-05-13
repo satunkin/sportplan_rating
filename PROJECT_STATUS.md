@@ -40,6 +40,7 @@ Current product state:
 - есть duplicate guard для точных повторов одного и того же результата: повторная подача блокируется у спортсмена, а duplicate approve в админке останавливается с явным предупреждением;
 - есть минимальный event-management inside moderation: approve flow переиспользует существующий `Event` по ключу старта и позволяет сохранить/обновить локацию события;
 - есть hosted deployment prep: `/api/health`, `deploy:check` и Vercel-oriented env checklist;
+- `deploy:check` теперь проверяет не только env-поля, но и доступность PostgreSQL, наличие ключевых Prisma-таблиц и SMTP handshake;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
 
 Current limitation:
@@ -135,6 +136,7 @@ Implemented developer validation:
 - `npm run build` passes after recent working cycles;
 - `npm run db:smoke:postgres` reaches the configured Supabase database successfully;
 - `npm run db:seed:demo` is rerunnable and produces a valid demo ranking snapshot on Supabase.
+- `npm run deploy:check` теперь задуман как реальный pre-deploy smoke check для env + DB + SMTP readiness.
 
 ---
 
@@ -263,3 +265,4 @@ Current best next coding step:
 - `2026-05-13`: exact duplicate result submissions are blocked both at athlete submit time and at admin approve time.
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.
 - `2026-05-13`: admin moderation now reuses existing event entities by event fingerprint instead of blindly creating a new Event on every approve.
+- `2026-05-13`: `deploy:check` strengthened from env-only validation to a real pre-deploy smoke check covering PostgreSQL connectivity, required Prisma tables, and SMTP handshake.

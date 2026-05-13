@@ -2,12 +2,16 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const runtimeDatabaseUrl = process.env.DATABASE_URL?.trim() ?? "";
-const postgresUrl = process.env.DATABASE_URL_POSTGRES?.trim() ?? "";
-const connectionString =
-  runtimeDatabaseUrl && !runtimeDatabaseUrl.startsWith("file:")
-    ? runtimeDatabaseUrl
-    : postgresUrl || "postgresql://postgres:postgres@localhost:5432/cyclon_rating?schema=public";
+import { getRuntimeDatabaseUrl } from "./lib/runtime-env.mjs";
+
+const connectionString = getRuntimeDatabaseUrl();
+
+if (!connectionString) {
+  console.error(
+    "PostgreSQL runtime smoke check failed. Configure DATABASE_URL or DATABASE_URL_POSTGRES first.",
+  );
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
@@ -24,9 +28,29 @@ main()
   .catch((error) => {
     console.error("PostgreSQL runtime smoke check failed.");
 
-    if (error && typeof error === "object" && error.code === "ECONNREFUSED") {
+    const driverAdapterError =
+      error &&
+      typeof error === "object" &&
+      "meta" in error &&
+      error.meta &&
+      typeof error.meta === "object" &&
+      "driverAdapterError" in error.meta
+        ? error.meta.driverAdapterError
+        : null;
+
+    const databaseNotReachable =
+      (error && typeof error === "object" && error.code === "ECONNREFUSED") ||
+      (driverAdapterError &&
+        typeof driverAdapterError === "object" &&
+        "cause" in driverAdapterError &&
+        driverAdapterError.cause &&
+        typeof driverAdapterError.cause === "object" &&
+        "kind" in driverAdapterError.cause &&
+        driverAdapterError.cause.kind === "DatabaseNotReachable");
+
+    if (databaseNotReachable) {
       console.error(
-        "DATABASE_URL_POSTGRES points to an unreachable PostgreSQL server. Start PostgreSQL or update the connection string before retrying.",
+        "The configured PostgreSQL server is unreachable. Check DATABASE_URL / DATABASE_URL_POSTGRES and retry.",
       );
     }
 
