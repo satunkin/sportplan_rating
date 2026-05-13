@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import {
   approveSubmission,
+  logoutAdmin,
   rejectSubmission,
   seedDemoData,
 } from "@/app/admin/submissions/actions";
@@ -12,13 +13,18 @@ import {
 import { hasAdminSession } from "@/lib/session";
 import { formatDate } from "@/lib/time";
 
-export default async function AdminSubmissionsPage() {
+export default async function AdminSubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; submissionId?: string }>;
+}) {
   const isAdmin = await hasAdminSession();
 
   if (!isAdmin) {
     redirect("/admin/login");
   }
 
+  const { error, submissionId } = await searchParams;
   const submissions = await listPendingSubmissions();
 
   return (
@@ -33,10 +39,20 @@ export default async function AdminSubmissionsPage() {
               Очередь проверки результатов
             </h1>
           </div>
-          <p className="text-sm leading-6 text-muted">
-            Здесь администратор видит все заявки со статусом
-            `PENDING_MANUAL_REVIEW` и может принять первичное решение.
-          </p>
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <p className="text-sm leading-6 text-muted">
+              Здесь администратор видит все заявки со статусом
+              `PENDING_MANUAL_REVIEW` и может принять первичное решение.
+            </p>
+            <form action={logoutAdmin}>
+              <button
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                type="submit"
+              >
+                Выйти из админки
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -53,6 +69,15 @@ export default async function AdminSubmissionsPage() {
             рейтинга для проверки end-to-end потока.
           </p>
         </div>
+
+        {error === "duplicate_verified_submission" ? (
+          <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Для этой заявки уже существует подтвержденный дубль у того же
+            спортсмена. Проверьте карточку заявки
+            {submissionId ? ` (${submissionId})` : ""} и отклоните повтор, чтобы
+            не задвоить рейтинг.
+          </div>
+        ) : null}
 
         {submissions.length === 0 ? (
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-border bg-white/65 px-6 py-8 text-sm leading-7 text-muted">
@@ -95,6 +120,24 @@ export default async function AdminSubmissionsPage() {
                         {submission.protocolUrl ?? "не указана"}
                       </a>
                     </p>
+                    {submission.matchedEvent ? (
+                      <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-6 text-emerald-800">
+                        Для этого старта уже есть нормализованная карточка
+                        события. При подтверждении заявка привяжется к existing
+                        event вместо создания нового дубля.
+                        {submission.matchedEvent.location ? (
+                          <div className="mt-2 text-emerald-900">
+                            Локация: {submission.matchedEvent.location}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-6 text-sky-800">
+                        Для такого сочетания названия, даты, дисциплины и
+                        дистанции карточка события еще не создана. При
+                        подтверждении система заведет новый `Event`.
+                      </div>
+                    )}
                     {submission.comment ? (
                       <p className="mt-3 rounded-2xl border border-border bg-surface px-4 py-4 text-sm leading-6 text-muted">
                         Комментарий спортсмена: {submission.comment}
@@ -128,6 +171,12 @@ export default async function AdminSubmissionsPage() {
                           name="fifthPlaceTime"
                           placeholder="Время 5-го места, например 41:50"
                           required
+                        />
+                        <input
+                          className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
+                          defaultValue={submission.matchedEvent?.location ?? ""}
+                          name="eventLocation"
+                          placeholder="Локация старта, например Москва"
                         />
                         <textarea
                           className="min-h-24 rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"

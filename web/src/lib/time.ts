@@ -27,3 +27,15 @@ export function formatDate(value: string | Date) {
     year: "numeric",
   }).format(date);
 }
+
+export function formatDurationFromSeconds(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [hours, minutes, seconds]
+    .filter((value, index) => value > 0 || index > 0 || hours > 0)
+    .map((value) => String(value).padStart(2, "0"));
+
+  return hours > 0 ? parts.join(":") : `${parts[0]}:${parts[1]}`;
+}

@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { LeaderboardFilterForm } from "@/app/leaderboard/filter-form";
+import { ScoreBreakdown } from "@/components/score-breakdown";
 import { getLeaderboardFilterOptions, listLeaderboard } from "@/lib/db";
+import { isCountedTowardTopThree } from "@/lib/ranking";
 
 export default async function LeaderboardPage({
   searchParams,
@@ -30,10 +32,16 @@ export default async function LeaderboardPage({
               Сезонный рейтинг Cyclon
             </h1>
           </div>
-          <p className="text-sm leading-6 text-muted">
+          <div className="max-w-md text-sm leading-6 text-muted">
             Сейчас рейтинг считается по подтвержденным результатам и сумме трех
-            лучших стартов спортсмена.
-          </p>
+            лучших стартов спортсмена.{" "}
+            <Link
+              className="font-semibold text-accent underline-offset-4 hover:underline"
+              href="/rules"
+            >
+              Открыть правила
+            </Link>
+          </div>
         </div>
 
         <LeaderboardFilterForm
@@ -124,17 +132,38 @@ export default async function LeaderboardPage({
                     </td>
                     <td className="px-5 py-4">
                       <div className="grid gap-2">
-                        {entry.athlete.verifiedResults.map((result) => (
+                        {entry.athlete.verifiedResults.map((result, index) => (
                           <div
                             key={result.id}
                             className="rounded-2xl border border-border bg-surface px-4 py-3"
                           >
-                            <p className="text-sm font-medium text-accent-strong">
-                              {result.submission.eventNameRaw}
-                            </p>
-                            <p className="mt-1 text-sm text-muted">
-                              {result.submission.distanceLabel} • {result.awardedPoints} pts
-                            </p>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-accent-strong">
+                                  {result.submission.eventNameRaw}
+                                </p>
+                                <p className="mt-1 text-sm text-muted">
+                                  {result.submission.distanceLabel}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                  isCountedTowardTopThree(index)
+                                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border border-slate-200 bg-slate-50 text-slate-600"
+                                }`}
+                              >
+                                {isCountedTowardTopThree(index) ? "В зачете" : "Резерв"}
+                              </span>
+                            </div>
+                            <ScoreBreakdown
+                              ageGroupUsed={result.ageGroupUsed}
+                              awardedPoints={result.awardedPoints}
+                              basePoints={result.scoreRule.basePoints}
+                              compact
+                              fifthPlaceTimeSeconds={result.fifthPlaceTimeSeconds}
+                              lagPercent={result.lagPercent.toString()}
+                            />
                           </div>
                         ))}
                       </div>

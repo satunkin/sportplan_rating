@@ -29,15 +29,16 @@ export default async function NewResultPage() {
             Подача результата
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            Сейчас заявка сохраняется во временной серверной сессии и получает
-            статус `pending_manual_review`. После подключения БД она будет
-            превращаться в полноценную `result_submission`.
+            Заявка сохраняется в рабочую Postgres-базу и получает статус
+            `pending_manual_review`. Доступ к форме опирается на cookie-сессию
+            спортсмена, чтобы flow уже работал как реальный личный кабинет.
           </p>
           <div className="mt-8 rounded-[1.5rem] border border-white/15 bg-white/8 px-5 py-5">
             <p className="text-sm leading-7 text-white/80">
               Для MVP критично уже сейчас собирать полные входные данные:
               соревнование, дисциплину, группу, итоговое время и ссылку на
-              официальный протокол.
+              официальный протокол. Точный дубль того же результата система
+              теперь не даст отправить повторно.
             </p>
           </div>
           <Link

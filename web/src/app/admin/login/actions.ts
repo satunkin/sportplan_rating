@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { verifyAdminLogin } from "@/lib/admin-auth";
 import { setAdminSession } from "@/lib/session";
 
 export type AdminLoginState = {
@@ -12,19 +13,15 @@ export async function loginAdmin(
   _prevState: AdminLoginState,
   formData: FormData,
 ): Promise<AdminLoginState> {
-  const passphrase = String(formData.get("passphrase") ?? "");
+  const result = await verifyAdminLogin({
+    email: String(formData.get("email") ?? ""),
+    password: String(formData.get("password") ?? ""),
+    passphrase: String(formData.get("passphrase") ?? ""),
+  });
 
-  if (!process.env.ADMIN_ACCESS_KEY) {
+  if (!result.success) {
     return {
-      errors: [
-        "ADMIN_ACCESS_KEY не задан. Добавьте его в .env для доступа к админке.",
-      ],
-    };
-  }
-
-  if (passphrase !== process.env.ADMIN_ACCESS_KEY) {
-    return {
-      errors: ["Неверный ключ доступа администратора."],
+      errors: [result.error],
     };
   }
 

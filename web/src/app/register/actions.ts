@@ -31,7 +31,30 @@ export async function registerAthlete(
     return { errors: result.errors };
   }
 
-  const { user } = await upsertAthleteProfile(result.data);
-  await setAthleteUserSession(user.id);
+  const password = String(formData.get("password") ?? "").trim();
+
+  if (password.length < 8) {
+    return {
+      errors: ["Пароль должен быть не короче 8 символов."],
+    };
+  }
+
+  try {
+    const { user } = await upsertAthleteProfile(result.data, password);
+    await setAthleteUserSession(user.id);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "EMAIL_ALREADY_REGISTERED"
+    ) {
+      return {
+        errors: [
+          "Этот email уже зарегистрирован. Войдите через страницу входа участника.",
+        ],
+      };
+    }
+
+    throw error;
+  }
   redirect("/cabinet");
 }

@@ -40,7 +40,22 @@ export async function submitResult(
     return { errors: result.errors };
   }
 
-  await createResultSubmissionForUser(userId, result.data);
+  try {
+    await createResultSubmissionForUser(userId, result.data);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "DUPLICATE_SUBMISSION"
+    ) {
+      return {
+        errors: [
+          "Похожий результат уже отправлен в очередь или уже подтвержден. Откройте кабинет и проверьте текущие заявки, чтобы не задублировать старт.",
+        ],
+      };
+    }
+
+    throw error;
+  }
 
   redirect("/cabinet");
 }

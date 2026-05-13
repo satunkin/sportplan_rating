@@ -85,6 +85,34 @@ Each result uses:
 - a `base_points` value determined by distance category;
 - a decay based on percentage lag from the `5th place` in the age group.
 
+MVP scoring formula:
+- `result_score = round(base_points * exp(-0.077 * lag_percent))`
+- `lag_percent = max(0, ((athlete_finish_time - fifth_place_time) / fifth_place_time) * 100)`
+- if the athlete is faster than the benchmark, `lag_percent` is treated as `0`
+- the maximum score for one result equals the category `base_points`
+- the minimum score for one result equals `0`
+
+MVP benchmark and eligibility rules:
+- the benchmark result is the `5th place` finish time in the athlete's age group
+- only `verified` results can contribute to the ranking
+- only results inside the active season are eligible
+- more than `3` verified results may exist, but only the best `3` count toward the season total
+- `DNS`, `DNF`, and `DSQ` results are not eligible for scoring
+
+MVP ambiguous-case policy:
+- if an age group has fewer than `5` finishers, the result cannot be auto-scored and must remain in admin review
+- if the organizer merged age groups in the published protocol, the result must remain in admin review until explicitly confirmed
+- if there is no public protocol, the result may only be accepted through manual admin verification
+- duplicate submissions for the same athlete and event must not create more than one counted verified result
+- late submissions are allowed only if the event date is still inside the active season
+
+MVP tie-breakers for equal season totals:
+1. higher best single verified result score;
+2. then higher second-best verified result score;
+3. then higher third-best verified result score;
+4. then greater number of verified eligible results;
+5. then shared position.
+
 The system must support:
 - official running categories;
 - official triathlon categories;
@@ -99,16 +127,12 @@ without code deployment where possible.
 
 ## 8. Rules Requiring Final Approval Before Release
 
-The product depends on final business decisions for:
-- how age group is determined for a season;
-- what happens when an age group has fewer than `5` finishers;
-- whether external events outside the core series are eligible;
-- how merged age groups are handled;
-- whether a result can be accepted without a public protocol;
-- how appeals and corrections are handled;
-- whether late submissions are allowed.
+The product still depends on final business decisions for:
+- how age group is determined for a season: by season rule or by event date;
+- whether external events outside the core series are eligible by default or only by admin approval;
+- how appeals and corrections are handled after verification.
 
-Until approved, these cases must be treated as admin-review cases.
+Until approved, these cases must be treated as admin-review or admin-policy cases.
 
 ## 9. Roles
 
@@ -336,7 +360,9 @@ Main entities:
 - approve final rules;
 - approve distance categories;
 - approve scoring scales for running, triathlon, cycling, swimming;
-- approve rule for groups with fewer than `5` finishers.
+- approve season age-group policy;
+- approve external event eligibility policy;
+- approve appeals/corrections policy.
 
 ### Phase 2. MVP
 
@@ -371,9 +397,7 @@ MVP is accepted if:
 ## 22. Open Questions
 
 1. Is age group determined by event date or season date?
-2. What happens if an age group has fewer than `5` finishers?
-3. Which cycling and swimming distances map to which scoring categories?
-4. Which external events are eligible?
-5. Are public athlete profile pages required?
-6. Is an internal appeal flow required?
-7. Is file upload for proof needed in MVP?
+2. Which cycling and swimming distances map to which scoring categories?
+3. Which external events are eligible?
+4. Is an internal appeal flow required?
+5. Is file upload for proof needed in MVP?

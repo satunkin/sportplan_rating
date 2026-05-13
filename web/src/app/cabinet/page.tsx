@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { logoutAthlete } from "@/app/cabinet/actions";
+import { ScoreBreakdown } from "@/components/score-breakdown";
 import { formatDate } from "@/lib/time";
 import { getAthleteProfileByUserId, listSubmissionsForUser } from "@/lib/db";
 import { getAthleteUserSession } from "@/lib/session";
@@ -20,15 +22,23 @@ export default async function CabinetPage() {
             Профиль пока не создан
           </h1>
           <p className="mt-4 text-base leading-7 text-muted">
-            Зарегистрируйтесь, чтобы увидеть личную карточку спортсмена,
-            возрастную группу и следующие этапы рейтинга.
+            Войдите или зарегистрируйтесь, чтобы увидеть личную карточку
+            спортсмена, возрастную группу и следующие этапы рейтинга.
           </p>
-          <Link
-            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
-            href="/register"
-          >
-            Перейти к регистрации
-          </Link>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
+              href="/login"
+            >
+              Войти
+            </Link>
+            <Link
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-white/80 px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-white"
+              href="/register"
+            >
+              Зарегистрироваться
+            </Link>
+          </div>
         </section>
       </main>
     );
@@ -38,12 +48,24 @@ export default async function CabinetPage() {
     <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
       <section className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_0.9fr]">
         <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-            Личный кабинет
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-accent-strong">
-            {profile.firstName} {profile.lastName}
-          </h1>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                Личный кабинет
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-accent-strong">
+                {profile.firstName} {profile.lastName}
+              </h1>
+            </div>
+            <form action={logoutAthlete}>
+              <button
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                type="submit"
+              >
+                Выйти
+              </button>
+            </form>
+          </div>
           <p className="mt-4 text-base leading-7 text-muted">
             Здесь собраны ваши данные сезона, поданные результаты и текущий
             статус их проверки.
@@ -117,9 +139,9 @@ export default async function CabinetPage() {
             </p>
             <Link
               className="mt-6 inline-flex text-sm font-medium text-accent underline-offset-4 hover:underline"
-              href="/"
+              href="/rules"
             >
-              Открыть главную страницу проекта
+              Открыть правила рейтинга
             </Link>
           </article>
         </aside>
@@ -136,7 +158,7 @@ export default async function CabinetPage() {
             </h2>
           </div>
           <p className="text-sm leading-6 text-muted">
-            Заявки уже сохраняются в локальной БД. Следующий шаг — полноценная
+            Заявки уже сохраняются в рабочей БД. Следующий шаг — полноценная
             админская модерация и подтверждение результатов по протоколам.
           </p>
         </div>
@@ -167,9 +189,16 @@ export default async function CabinetPage() {
                       {submission.finishTimeRaw}
                     </p>
                     {submission.verifiedResult ? (
-                      <p className="mt-2 text-sm font-medium text-emerald-700">
-                        Начислено очков: {submission.verifiedResult.awardedPoints}
-                      </p>
+                      <ScoreBreakdown
+                        ageGroupUsed={submission.verifiedResult.ageGroupUsed}
+                        awardedPoints={submission.verifiedResult.awardedPoints}
+                        basePoints={submission.verifiedResult.scoreRule.basePoints}
+                        compact
+                        fifthPlaceTimeSeconds={
+                          submission.verifiedResult.fifthPlaceTimeSeconds
+                        }
+                        lagPercent={submission.verifiedResult.lagPercent.toString()}
+                      />
                     ) : null}
                   </div>
                   <div

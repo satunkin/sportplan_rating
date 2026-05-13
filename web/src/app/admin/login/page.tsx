@@ -1,8 +1,12 @@
 import Link from "next/link";
 
 import { AdminLoginForm } from "@/app/admin/login/form";
+import { getAdminAuthMode, getAdminAuthSetupHint } from "@/lib/admin-auth";
 
 export default function AdminLoginPage() {
+  const authMode = getAdminAuthMode();
+  const authHint = getAdminAuthSetupHint();
+
   return (
     <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
       <section className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
@@ -14,8 +18,10 @@ export default function AdminLoginPage() {
             Первая модерационная точка
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            Эта страница дает доступ к первой очереди проверки заявок. Для dev
-            режима вход защищен простым ключом из `ADMIN_ACCESS_KEY`.
+            Эта страница дает доступ к первой очереди проверки заявок. Базовый
+            production-ready путь здесь теперь идет через `ADMIN_EMAIL` и
+            `ADMIN_PASSWORD_HASH`, а `ADMIN_ACCESS_KEY` остается только как
+            временный fallback.
           </p>
           <Link
             className="mt-8 inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline"
@@ -33,11 +39,20 @@ export default function AdminLoginPage() {
             Вход в очередь проверки результатов
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            Следующий шаг после этого foundation-среза — роли, полноценный admin
-            auth и проверка по протоколам.
+            {authHint}
+          </p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
+            Активный режим входа:{" "}
+            <span className="font-medium text-accent-strong">
+              {authMode === "credentials"
+                ? "email + password"
+                : authMode === "access_key"
+                  ? "legacy access key"
+                  : "not configured"}
+            </span>
           </p>
           <div className="mt-8">
-            <AdminLoginForm />
+            <AdminLoginForm mode={authMode} />
           </div>
         </article>
       </section>

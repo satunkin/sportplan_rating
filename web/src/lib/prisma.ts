@@ -1,19 +1,36 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+import { getDatabaseUrl } from "@/lib/runtime-config";
+
+type AppPrismaClient = PrismaClient;
 
 const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
+  prisma?: AppPrismaClient;
 };
 
-const adapter = new PrismaBetterSqlite3({
-  url: "prisma/dev.db",
-});
+function createPrismaClient() {
+  const databaseUrl = getDatabaseUrl();
 
-export const prisma =
+  if (
+    databaseUrl.startsWith("postgresql://") ||
+    databaseUrl.startsWith("postgres://")
+  ) {
+    return new PrismaClient({
+      adapter: new PrismaPg({
+        connectionString: databaseUrl,
+      }) as never,
+    });
+  }
+
+  throw new Error(
+    `Unsupported DATABASE_URL protocol. Expected postgres:// or postgresql://, got "${databaseUrl}".`,
+  );
+}
+
+export const prisma: AppPrismaClient =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-  });
+  createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

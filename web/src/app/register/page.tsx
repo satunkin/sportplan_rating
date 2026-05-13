@@ -14,9 +14,9 @@ export default function RegisterPage() {
             Регистрация спортсмена
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            В этом цикле MVP профиль пока сохраняется как временная серверная
-            сессия. После подключения БД форма будет писать данные в таблицы
-            `users` и `athletes`.
+            Профиль сохраняется в БД и привязывается к email и паролю, чтобы
+            участник мог вернуться в кабинет с нового устройства или после
+            очистки cookies.
           </p>
           <div className="mt-8 rounded-[1.5rem] border border-white/15 bg-white/8 px-5 py-5">
             <p className="text-sm leading-7 text-white/80">
@@ -41,8 +41,8 @@ export default function RegisterPage() {
             Заполните основные данные для входа в рейтинг
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            После сохранения вы попадете в личный кабинет. На следующем этапе
-            сюда добавятся подача результатов и их статус проверки.
+            После сохранения вы попадете в личный кабинет. Если профиль уже
+            существует, используйте страницу входа, а не повторную регистрацию.
           </p>
           <div className="mt-8">
             <RegisterForm />

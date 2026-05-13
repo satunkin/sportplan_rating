@@ -65,6 +65,18 @@ export function RegisterForm() {
         </label>
       </div>
 
+      <label className="text-sm font-medium text-foreground">
+        Пароль
+        <input
+          className={inputClassName}
+          autoComplete="new-password"
+          minLength={8}
+          name="password"
+          required
+          type="password"
+        />
+      </label>
+
       <fieldset className="grid gap-3">
         <legend className="text-sm font-medium text-foreground">Пол</legend>
         <div className="flex flex-wrap gap-3">

@@ -11,6 +11,12 @@ import {
 
 import type { AthleteProfile } from "@/lib/athlete-profile";
 import { ensureDatabaseReady } from "@/lib/db-bootstrap";
+import {
+  createMagicLinkToken,
+  getMagicLinkExpiryDate,
+  hashMagicLinkToken,
+} from "@/lib/magic-link";
+import { createPasswordHash, verifyPasswordHash } from "@/lib/password-auth";
 import type { ResultSubmissionInput } from "@/lib/result-submission";
 import { prisma } from "@/lib/prisma";
 import {
@@ -22,6 +28,203 @@ import {
 import { parseTimeToSeconds } from "@/lib/time";
 
 const CURRENT_SEASON_YEAR = new Date().getFullYear();
+const DEMO_ATHLETE_PASSWORD = "demo-athlete-password";
+
+type DemoProfileSeed = AthleteProfile;
+
+type DemoResultSeed = {
+  email: string;
+  eventName: string;
+  eventDate: string;
+  discipline: Discipline;
+  distanceLabel: string;
+  ageGroupClaimed: string;
+  finishTime: string;
+  fifthPlaceTime: string;
+  protocolUrl: string;
+  categoryKey: string;
+};
+
+type SubmissionDuplicateFingerprint = {
+  athleteId: string;
+  seasonId: string;
+  eventNameRaw: string;
+  eventDate: Date;
+  discipline: Discipline;
+  distanceLabel: string;
+  finishTimeSeconds: number;
+  excludeSubmissionId?: string;
+  statuses?: SubmissionStatus[];
+};
+
+type EventFingerprint = {
+  eventName: string;
+  eventDate: Date;
+  discipline: Discipline;
+  distanceLabel: string;
+};
+
+const DEMO_PROFILES: DemoProfileSeed[] = [
+  {
+    firstName: "Алексей",
+    lastName: "Волков",
+    middleName: "",
+    email: "alexey.demo@cyclon.local",
+    city: "Москва",
+    birthDate: "1989-04-17",
+    gender: "male",
+    seasonYear: CURRENT_SEASON_YEAR,
+    seasonAge: 36,
+    seasonAgeGroup: "M35-39",
+  },
+  {
+    firstName: "Марина",
+    lastName: "Крылова",
+    middleName: "",
+    email: "marina.demo@cyclon.local",
+    city: "Санкт-Петербург",
+    birthDate: "1992-09-03",
+    gender: "female",
+    seasonYear: CURRENT_SEASON_YEAR,
+    seasonAge: 33,
+    seasonAgeGroup: "W30-34",
+  },
+  {
+    firstName: "Илья",
+    lastName: "Серов",
+    middleName: "",
+    email: "ilya.demo@cyclon.local",
+    city: "Казань",
+    birthDate: "1984-01-29",
+    gender: "male",
+    seasonYear: CURRENT_SEASON_YEAR,
+    seasonAge: 41,
+    seasonAgeGroup: "M40-44",
+  },
+  {
+    firstName: "Анна",
+    lastName: "Лебедева",
+    middleName: "",
+    email: "anna.demo@cyclon.local",
+    city: "Екатеринбург",
+    birthDate: "1996-06-11",
+    gender: "female",
+    seasonYear: CURRENT_SEASON_YEAR,
+    seasonAge: 29,
+    seasonAgeGroup: "W25-29",
+  },
+];
+
+const DEMO_RESULTS: DemoResultSeed[] = [
+  {
+    email: "alexey.demo@cyclon.local",
+    eventName: "Весенний забег 10 км",
+    eventDate: `${CURRENT_SEASON_YEAR}-04-12`,
+    discipline: Discipline.RUNNING,
+    distanceLabel: "10 км",
+    ageGroupClaimed: "M35-39",
+    finishTime: "39:20",
+    fifthPlaceTime: "38:30",
+    protocolUrl: "https://example.com/results/run10k",
+    categoryKey: "run_10k",
+  },
+  {
+    email: "alexey.demo@cyclon.local",
+    eventName: "Городской полумарафон",
+    eventDate: `${CURRENT_SEASON_YEAR}-05-18`,
+    discipline: Discipline.RUNNING,
+    distanceLabel: "21 км",
+    ageGroupClaimed: "M35-39",
+    finishTime: "01:28:20",
+    fifthPlaceTime: "01:25:10",
+    protocolUrl: "https://example.com/results/half",
+    categoryKey: "run_21k",
+  },
+  {
+    email: "marina.demo@cyclon.local",
+    eventName: "Open Water Cup",
+    eventDate: `${CURRENT_SEASON_YEAR}-06-08`,
+    discipline: Discipline.SWIMMING,
+    distanceLabel: "3 км",
+    ageGroupClaimed: "W30-34",
+    finishTime: "41:40",
+    fifthPlaceTime: "39:50",
+    protocolUrl: "https://example.com/results/swim",
+    categoryKey: "swim_mid",
+  },
+  {
+    email: "marina.demo@cyclon.local",
+    eventName: "Cyclon Tri Sprint",
+    eventDate: `${CURRENT_SEASON_YEAR}-07-06`,
+    discipline: Discipline.TRIATHLON,
+    distanceLabel: "Спринт",
+    ageGroupClaimed: "W30-34",
+    finishTime: "01:17:30",
+    fifthPlaceTime: "01:13:40",
+    protocolUrl: "https://example.com/results/tri-sprint",
+    categoryKey: "tri_sprint",
+  },
+  {
+    email: "ilya.demo@cyclon.local",
+    eventName: "Gran Fondo 90 км",
+    eventDate: `${CURRENT_SEASON_YEAR}-06-15`,
+    discipline: Discipline.CYCLING,
+    distanceLabel: "90 км",
+    ageGroupClaimed: "M40-44",
+    finishTime: "02:31:10",
+    fifthPlaceTime: "02:24:20",
+    protocolUrl: "https://example.com/results/granfondo",
+    categoryKey: "bike_mid",
+  },
+  {
+    email: "ilya.demo@cyclon.local",
+    eventName: "Cyclon Olympic Triathlon",
+    eventDate: `${CURRENT_SEASON_YEAR}-08-03`,
+    discipline: Discipline.TRIATHLON,
+    distanceLabel: "Олимпийка",
+    ageGroupClaimed: "M40-44",
+    finishTime: "02:24:10",
+    fifthPlaceTime: "02:18:00",
+    protocolUrl: "https://example.com/results/olympic",
+    categoryKey: "tri_olympic",
+  },
+  {
+    email: "anna.demo@cyclon.local",
+    eventName: "Ночной забег 5 км",
+    eventDate: `${CURRENT_SEASON_YEAR}-05-24`,
+    discipline: Discipline.RUNNING,
+    distanceLabel: "5 км",
+    ageGroupClaimed: "W25-29",
+    finishTime: "21:45",
+    fifthPlaceTime: "20:50",
+    protocolUrl: "https://example.com/results/night-run",
+    categoryKey: "run_5k",
+  },
+  {
+    email: "anna.demo@cyclon.local",
+    eventName: "Осенний марафон",
+    eventDate: `${CURRENT_SEASON_YEAR}-09-21`,
+    discipline: Discipline.RUNNING,
+    distanceLabel: "Марафон",
+    ageGroupClaimed: "W25-29",
+    finishTime: "03:26:15",
+    fifthPlaceTime: "03:18:40",
+    protocolUrl: "https://example.com/results/marathon",
+    categoryKey: "run_marathon",
+  },
+  {
+    email: "anna.demo@cyclon.local",
+    eventName: "Cyclon Tri Half",
+    eventDate: `${CURRENT_SEASON_YEAR}-08-17`,
+    discipline: Discipline.TRIATHLON,
+    distanceLabel: "Half Ironman",
+    ageGroupClaimed: "W25-29",
+    finishTime: "05:14:30",
+    fifthPlaceTime: "04:58:10",
+    protocolUrl: "https://example.com/results/tri-half",
+    categoryKey: "tri_half",
+  },
+];
 
 async function ensureCurrentSeason() {
   await ensureDatabaseReady();
@@ -85,17 +288,19 @@ async function ensureScoreRuleSeed(seasonId: string) {
   }
 }
 
-export async function upsertAthleteProfile(profile: AthleteProfile) {
-  await ensureDatabaseReady();
+async function upsertDemoAthleteProfile(profile: DemoProfileSeed) {
+  const passwordHash = await createPasswordHash(DEMO_ATHLETE_PASSWORD);
 
   const user = await prisma.user.upsert({
     where: { email: profile.email },
     update: {
       role: UserRole.ATHLETE,
+      passwordHash,
     },
     create: {
       email: profile.email,
       role: UserRole.ATHLETE,
+      passwordHash,
     },
   });
 
@@ -123,6 +328,335 @@ export async function upsertAthleteProfile(profile: AthleteProfile) {
   });
 
   return { user, athlete };
+}
+
+async function upsertDemoEvent(params: {
+  categoryId?: string | null;
+  discipline: Discipline;
+  distanceLabel: string;
+  eventDate: Date;
+  eventName: string;
+  protocolUrl: string;
+}) {
+  const existingEvent = await prisma.event.findFirst({
+    where: {
+      name: params.eventName,
+      eventDate: params.eventDate,
+      discipline: params.discipline,
+      distanceLabel: params.distanceLabel,
+    },
+  });
+
+  if (existingEvent) {
+    return prisma.event.update({
+      where: { id: existingEvent.id },
+      data: {
+        sourceUrl: params.protocolUrl,
+        categoryId: params.categoryId ?? null,
+      },
+    });
+  }
+
+  return prisma.event.create({
+    data: {
+      name: params.eventName,
+      eventDate: params.eventDate,
+      discipline: params.discipline,
+      distanceLabel: params.distanceLabel,
+      sourceUrl: params.protocolUrl,
+      categoryId: params.categoryId ?? null,
+    },
+  });
+}
+
+async function upsertDemoSubmission(params: {
+  athleteId: string;
+  seasonId: string;
+  eventId: string;
+  eventName: string;
+  eventDate: Date;
+  discipline: Discipline;
+  distanceLabel: string;
+  ageGroupClaimed: string;
+  finishTime: string;
+  finishTimeSeconds: number;
+  protocolUrl: string;
+}) {
+  const existingSubmission = await prisma.resultSubmission.findFirst({
+    where: {
+      athleteId: params.athleteId,
+      seasonId: params.seasonId,
+      eventNameRaw: params.eventName,
+      eventDate: params.eventDate,
+      discipline: params.discipline,
+      distanceLabel: params.distanceLabel,
+      finishTimeSeconds: params.finishTimeSeconds,
+    },
+  });
+
+  const sharedData = {
+    eventId: params.eventId,
+    eventNameRaw: params.eventName,
+    eventDate: params.eventDate,
+    discipline: params.discipline,
+    distanceLabel: params.distanceLabel,
+    ageGroupClaimed: params.ageGroupClaimed,
+    finishTimeRaw: params.finishTime,
+    finishTimeSeconds: params.finishTimeSeconds,
+    protocolUrl: params.protocolUrl,
+    comment: "Демо-заполнение для проверки рейтинга",
+    status: SubmissionStatus.VERIFIED,
+    adminNotes: "Демо-подтверждение для просмотра рейтинга",
+  };
+
+  if (existingSubmission) {
+    return prisma.resultSubmission.update({
+      where: { id: existingSubmission.id },
+      data: sharedData,
+    });
+  }
+
+  return prisma.resultSubmission.create({
+    data: {
+      athleteId: params.athleteId,
+      seasonId: params.seasonId,
+      ...sharedData,
+    },
+  });
+}
+
+async function findDuplicateSubmission(
+  fingerprint: SubmissionDuplicateFingerprint,
+) {
+  return prisma.resultSubmission.findFirst({
+    where: {
+      athleteId: fingerprint.athleteId,
+      seasonId: fingerprint.seasonId,
+      eventNameRaw: fingerprint.eventNameRaw,
+      eventDate: fingerprint.eventDate,
+      discipline: fingerprint.discipline,
+      distanceLabel: fingerprint.distanceLabel,
+      finishTimeSeconds: fingerprint.finishTimeSeconds,
+      ...(fingerprint.excludeSubmissionId
+        ? {
+            id: {
+              not: fingerprint.excludeSubmissionId,
+            },
+          }
+        : {}),
+      ...(fingerprint.statuses?.length
+        ? {
+            status: {
+              in: fingerprint.statuses,
+            },
+          }
+        : {}),
+    },
+  });
+}
+
+async function findEventByFingerprint(fingerprint: EventFingerprint) {
+  return prisma.event.findFirst({
+    where: {
+      name: fingerprint.eventName,
+      eventDate: fingerprint.eventDate,
+      discipline: fingerprint.discipline,
+      distanceLabel: fingerprint.distanceLabel,
+    },
+  });
+}
+
+async function ensureEventForSubmission(params: {
+  categoryId?: string | null;
+  discipline: Discipline;
+  distanceLabel: string;
+  eventDate: Date;
+  eventName: string;
+  location?: string | null;
+  sourceUrl?: string | null;
+}) {
+  const existingEvent = await findEventByFingerprint({
+    eventName: params.eventName,
+    eventDate: params.eventDate,
+    discipline: params.discipline,
+    distanceLabel: params.distanceLabel,
+  });
+
+  const normalizedLocation = params.location?.trim() || null;
+  const normalizedSourceUrl = params.sourceUrl?.trim() || null;
+
+  if (existingEvent) {
+    return prisma.event.update({
+      where: { id: existingEvent.id },
+      data: {
+        categoryId: params.categoryId ?? existingEvent.categoryId ?? null,
+        location: normalizedLocation ?? existingEvent.location ?? null,
+        sourceUrl: normalizedSourceUrl ?? existingEvent.sourceUrl ?? null,
+      },
+    });
+  }
+
+  return prisma.event.create({
+    data: {
+      name: params.eventName,
+      eventDate: params.eventDate,
+      discipline: params.discipline,
+      distanceLabel: params.distanceLabel,
+      sourceUrl: normalizedSourceUrl,
+      location: normalizedLocation,
+      categoryId: params.categoryId ?? null,
+    },
+  });
+}
+
+export async function upsertAthleteProfile(
+  profile: AthleteProfile,
+  password: string,
+) {
+  await ensureDatabaseReady();
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email: profile.email },
+    include: { athlete: true },
+  });
+
+  if (existingUser?.passwordHash) {
+    throw new Error("EMAIL_ALREADY_REGISTERED");
+  }
+
+  const passwordHash = await createPasswordHash(password);
+
+  const user = await prisma.user.upsert({
+    where: { email: profile.email },
+    update: {
+      role: UserRole.ATHLETE,
+      passwordHash,
+    },
+    create: {
+      email: profile.email,
+      role: UserRole.ATHLETE,
+      passwordHash,
+    },
+  });
+
+  const athlete = await prisma.athlete.upsert({
+    where: { userId: user.id },
+    update: {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      middleName: profile.middleName || null,
+      birthDate: new Date(profile.birthDate),
+      gender: profile.gender === "male" ? Gender.MALE : Gender.FEMALE,
+      city: profile.city,
+      seasonAgeGroup: profile.seasonAgeGroup,
+    },
+    create: {
+      userId: user.id,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      middleName: profile.middleName || null,
+      birthDate: new Date(profile.birthDate),
+      gender: profile.gender === "male" ? Gender.MALE : Gender.FEMALE,
+      city: profile.city,
+      seasonAgeGroup: profile.seasonAgeGroup,
+    },
+  });
+
+  return { user, athlete };
+}
+
+export async function authenticateAthleteUser(email: string, password: string) {
+  await ensureDatabaseReady();
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!user?.passwordHash || user.role !== UserRole.ATHLETE) {
+    return null;
+  }
+
+  const passwordMatches = await verifyPasswordHash(password, user.passwordHash);
+
+  return passwordMatches ? user : null;
+}
+
+export async function issueAthleteMagicLink(email: string) {
+  await ensureDatabaseReady();
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return {
+      email: normalizedEmail,
+      token: null,
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!user || user.role !== UserRole.ATHLETE) {
+    return {
+      email: normalizedEmail,
+      token: null,
+    };
+  }
+
+  await prisma.magicLinkToken.deleteMany({
+    where: { userId: user.id },
+  });
+
+  const token = createMagicLinkToken();
+
+  await prisma.magicLinkToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashMagicLinkToken(token),
+      expiresAt: getMagicLinkExpiryDate(),
+    },
+  });
+
+  return {
+    email: normalizedEmail,
+    token,
+  };
+}
+
+export async function consumeAthleteMagicLink(token: string) {
+  await ensureDatabaseReady();
+
+  const tokenHash = hashMagicLinkToken(token);
+  const magicLinkToken = await prisma.magicLinkToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!magicLinkToken) {
+    return null;
+  }
+
+  if (magicLinkToken.usedAt || magicLinkToken.expiresAt <= new Date()) {
+    return null;
+  }
+
+  await prisma.magicLinkToken.update({
+    where: { id: magicLinkToken.id },
+    data: { usedAt: new Date() },
+  });
+
+  if (magicLinkToken.user.role !== UserRole.ATHLETE) {
+    return null;
+  }
+
+  return magicLinkToken.user;
 }
 
 export async function getAthleteProfileByUserId(userId: string) {
@@ -181,10 +715,29 @@ export async function createResultSubmissionForUser(
   }
 
   const season = await ensureCurrentSeason();
+  const eventDate = new Date(input.eventDate);
   const finishTimeSeconds = parseTimeToSeconds(input.finishTime);
 
   if (finishTimeSeconds === null) {
     throw new Error("INVALID_TIME");
+  }
+
+  const existingDuplicate = await findDuplicateSubmission({
+    athleteId: athlete.id,
+    seasonId: season.id,
+    eventNameRaw: input.eventName,
+    eventDate,
+    discipline: input.discipline as Discipline,
+    distanceLabel: input.distanceLabel,
+    finishTimeSeconds,
+    statuses: [
+      SubmissionStatus.PENDING_MANUAL_REVIEW,
+      SubmissionStatus.VERIFIED,
+    ],
+  });
+
+  if (existingDuplicate) {
+    throw new Error("DUPLICATE_SUBMISSION");
   }
 
   return prisma.resultSubmission.create({
@@ -192,7 +745,7 @@ export async function createResultSubmissionForUser(
       athleteId: athlete.id,
       seasonId: season.id,
       eventNameRaw: input.eventName,
-      eventDate: new Date(input.eventDate),
+      eventDate,
       discipline: input.discipline as Discipline,
       distanceLabel: input.distanceLabel,
       ageGroupClaimed: input.ageGroupClaimed,
@@ -219,7 +772,11 @@ export async function listSubmissionsForUser(userId: string) {
   return prisma.resultSubmission.findMany({
     where: { athleteId: athlete.id },
     include: {
-      verifiedResult: true,
+      verifiedResult: {
+        include: {
+          scoreRule: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -248,7 +805,7 @@ export async function listPendingSubmissions() {
   const season = await ensureCurrentSeason();
   await ensureScoreRuleSeed(season.id);
 
-  return prisma.resultSubmission.findMany({
+  const submissions = await prisma.resultSubmission.findMany({
     where: {
       status: SubmissionStatus.PENDING_MANUAL_REVIEW,
     },
@@ -262,6 +819,22 @@ export async function listPendingSubmissions() {
     },
     orderBy: { createdAt: "asc" },
   });
+
+  const eventMatches = await Promise.all(
+    submissions.map((submission) =>
+      findEventByFingerprint({
+        eventName: submission.eventNameRaw,
+        eventDate: submission.eventDate,
+        discipline: submission.discipline,
+        distanceLabel: submission.distanceLabel,
+      }),
+    ),
+  );
+
+  return submissions.map((submission, index) => ({
+    ...submission,
+    matchedEvent: eventMatches[index],
+  }));
 }
 
 async function recalculateSeasonRanking(seasonId: string) {
@@ -332,6 +905,7 @@ export async function reviewSubmission(
   scoringInput?: {
     categoryKey: string;
     fifthPlaceTime: string;
+    eventLocation?: string;
   },
 ) {
   await ensureDatabaseReady();
@@ -343,6 +917,24 @@ export async function reviewSubmission(
 
   if (!submissionBefore) {
     throw new Error("SUBMISSION_NOT_FOUND");
+  }
+
+  if (decision === "approve") {
+    const existingVerifiedDuplicate = await findDuplicateSubmission({
+      athleteId: submissionBefore.athleteId,
+      seasonId: submissionBefore.seasonId,
+      eventNameRaw: submissionBefore.eventNameRaw,
+      eventDate: submissionBefore.eventDate,
+      discipline: submissionBefore.discipline,
+      distanceLabel: submissionBefore.distanceLabel,
+      finishTimeSeconds: submissionBefore.finishTimeSeconds,
+      excludeSubmissionId: submissionBefore.id,
+      statuses: [SubmissionStatus.VERIFIED],
+    });
+
+    if (existingVerifiedDuplicate) {
+      throw new Error("DUPLICATE_VERIFIED_SUBMISSION");
+    }
   }
 
   let preparedApproval:
@@ -434,15 +1026,14 @@ export async function reviewSubmission(
       throw new Error("APPROVAL_NOT_PREPARED");
     }
 
-    const event = await prisma.event.create({
-      data: {
-        name: submission.eventNameRaw,
-        eventDate: submission.eventDate,
-        discipline: submission.discipline,
-        distanceLabel: submission.distanceLabel,
-        sourceUrl: submission.protocolUrl ?? null,
-        categoryId: preparedApproval.eventCategory?.id,
-      },
+    const event = await ensureEventForSubmission({
+      eventName: submission.eventNameRaw,
+      eventDate: submission.eventDate,
+      discipline: submission.discipline,
+      distanceLabel: submission.distanceLabel,
+      sourceUrl: submission.protocolUrl ?? null,
+      location: scoringInput?.eventLocation ?? null,
+      categoryId: preparedApproval.eventCategory?.id,
     });
 
     await prisma.resultSubmission.update({
@@ -534,6 +1125,7 @@ export async function listLeaderboard(filters?: {
             take: 3,
             include: {
               submission: true,
+              scoreRule: true,
             },
           },
         },
@@ -598,6 +1190,7 @@ export async function getPublicAthleteProfile(athleteId: string) {
             orderBy: { awardedPoints: "desc" },
             include: {
               submission: true,
+              scoreRule: true,
             },
           },
         },
@@ -612,217 +1205,117 @@ export async function seedDemoScenario() {
   const season = await ensureCurrentSeason();
   await ensureScoreRuleSeed(season.id);
 
-  await prisma.auditLog.deleteMany();
-  await prisma.manualReview.deleteMany();
-  await prisma.verifiedResult.deleteMany();
-  await prisma.rankingEntry.deleteMany();
-  await prisma.resultSubmission.deleteMany();
-  await prisma.event.deleteMany();
-  await prisma.athlete.deleteMany();
-  await prisma.user.deleteMany({
-    where: {
-      email: {
-        not: "admin@cyclon.local",
-      },
-    },
-  });
-
-  const demoProfiles: AthleteProfile[] = [
-    {
-      firstName: "Алексей",
-      lastName: "Волков",
-      middleName: "",
-      email: "alexey.demo@cyclon.local",
-      city: "Москва",
-      birthDate: "1989-04-17",
-      gender: "male",
-      seasonYear: CURRENT_SEASON_YEAR,
-      seasonAge: 36,
-      seasonAgeGroup: "M35-39",
-    },
-    {
-      firstName: "Марина",
-      lastName: "Крылова",
-      middleName: "",
-      email: "marina.demo@cyclon.local",
-      city: "Санкт-Петербург",
-      birthDate: "1992-09-03",
-      gender: "female",
-      seasonYear: CURRENT_SEASON_YEAR,
-      seasonAge: 33,
-      seasonAgeGroup: "W30-34",
-    },
-    {
-      firstName: "Илья",
-      lastName: "Серов",
-      middleName: "",
-      email: "ilya.demo@cyclon.local",
-      city: "Казань",
-      birthDate: "1984-01-29",
-      gender: "male",
-      seasonYear: CURRENT_SEASON_YEAR,
-      seasonAge: 41,
-      seasonAgeGroup: "M40-44",
-    },
-    {
-      firstName: "Анна",
-      lastName: "Лебедева",
-      middleName: "",
-      email: "anna.demo@cyclon.local",
-      city: "Екатеринбург",
-      birthDate: "1996-06-11",
-      gender: "female",
-      seasonYear: CURRENT_SEASON_YEAR,
-      seasonAge: 29,
-      seasonAgeGroup: "W25-29",
-    },
-  ];
-
   const athletes = new Map<string, Awaited<ReturnType<typeof upsertAthleteProfile>>>();
 
-  for (const profile of demoProfiles) {
-    athletes.set(profile.email, await upsertAthleteProfile(profile));
+  for (const profile of DEMO_PROFILES) {
+    athletes.set(
+      profile.email,
+      await upsertDemoAthleteProfile(profile),
+    );
   }
 
-  const demoResults = [
-    {
-      email: "alexey.demo@cyclon.local",
-      eventName: "Весенний забег 10 км",
-      eventDate: `${CURRENT_SEASON_YEAR}-04-12`,
-      discipline: Discipline.RUNNING,
-      distanceLabel: "10 км",
-      ageGroupClaimed: "M35-39",
-      finishTime: "39:20",
-      fifthPlaceTime: "38:30",
-      protocolUrl: "https://example.com/results/run10k",
-      categoryKey: "run_10k",
-    },
-    {
-      email: "alexey.demo@cyclon.local",
-      eventName: "Городской полумарафон",
-      eventDate: `${CURRENT_SEASON_YEAR}-05-18`,
-      discipline: Discipline.RUNNING,
-      distanceLabel: "21 км",
-      ageGroupClaimed: "M35-39",
-      finishTime: "01:28:20",
-      fifthPlaceTime: "01:25:10",
-      protocolUrl: "https://example.com/results/half",
-      categoryKey: "run_21k",
-    },
-    {
-      email: "marina.demo@cyclon.local",
-      eventName: "Open Water Cup",
-      eventDate: `${CURRENT_SEASON_YEAR}-06-08`,
-      discipline: Discipline.SWIMMING,
-      distanceLabel: "3 км",
-      ageGroupClaimed: "W30-34",
-      finishTime: "41:40",
-      fifthPlaceTime: "39:50",
-      protocolUrl: "https://example.com/results/swim",
-      categoryKey: "swim_mid",
-    },
-    {
-      email: "marina.demo@cyclon.local",
-      eventName: "Cyclon Tri Sprint",
-      eventDate: `${CURRENT_SEASON_YEAR}-07-06`,
-      discipline: Discipline.TRIATHLON,
-      distanceLabel: "Спринт",
-      ageGroupClaimed: "W30-34",
-      finishTime: "01:17:30",
-      fifthPlaceTime: "01:13:40",
-      protocolUrl: "https://example.com/results/tri-sprint",
-      categoryKey: "tri_sprint",
-    },
-    {
-      email: "ilya.demo@cyclon.local",
-      eventName: "Gran Fondo 90 км",
-      eventDate: `${CURRENT_SEASON_YEAR}-06-15`,
-      discipline: Discipline.CYCLING,
-      distanceLabel: "90 км",
-      ageGroupClaimed: "M40-44",
-      finishTime: "02:31:10",
-      fifthPlaceTime: "02:24:20",
-      protocolUrl: "https://example.com/results/granfondo",
-      categoryKey: "bike_mid",
-    },
-    {
-      email: "ilya.demo@cyclon.local",
-      eventName: "Cyclon Olympic Triathlon",
-      eventDate: `${CURRENT_SEASON_YEAR}-08-03`,
-      discipline: Discipline.TRIATHLON,
-      distanceLabel: "Олимпийка",
-      ageGroupClaimed: "M40-44",
-      finishTime: "02:24:10",
-      fifthPlaceTime: "02:18:00",
-      protocolUrl: "https://example.com/results/olympic",
-      categoryKey: "tri_olympic",
-    },
-    {
-      email: "anna.demo@cyclon.local",
-      eventName: "Ночной забег 5 км",
-      eventDate: `${CURRENT_SEASON_YEAR}-05-24`,
-      discipline: Discipline.RUNNING,
-      distanceLabel: "5 км",
-      ageGroupClaimed: "W25-29",
-      finishTime: "21:45",
-      fifthPlaceTime: "20:50",
-      protocolUrl: "https://example.com/results/night-run",
-      categoryKey: "run_5k",
-    },
-    {
-      email: "anna.demo@cyclon.local",
-      eventName: "Осенний марафон",
-      eventDate: `${CURRENT_SEASON_YEAR}-09-21`,
-      discipline: Discipline.RUNNING,
-      distanceLabel: "Марафон",
-      ageGroupClaimed: "W25-29",
-      finishTime: "03:26:15",
-      fifthPlaceTime: "03:18:40",
-      protocolUrl: "https://example.com/results/marathon",
-      categoryKey: "run_marathon",
-    },
-    {
-      email: "anna.demo@cyclon.local",
-      eventName: "Cyclon Tri Half",
-      eventDate: `${CURRENT_SEASON_YEAR}-08-17`,
-      discipline: Discipline.TRIATHLON,
-      distanceLabel: "Half Ironman",
-      ageGroupClaimed: "W25-29",
-      finishTime: "05:14:30",
-      fifthPlaceTime: "04:58:10",
-      protocolUrl: "https://example.com/results/tri-half",
-      categoryKey: "tri_half",
-    },
-  ];
-
-  for (const item of demoResults) {
+  for (const item of DEMO_RESULTS) {
     const athleteRef = athletes.get(item.email);
 
     if (!athleteRef) {
       continue;
     }
 
-    const submission = await createResultSubmissionForUser(athleteRef.user.id, {
+    const category = await prisma.eventCategory.findUnique({
+      where: {
+        discipline_categoryKey: {
+          discipline: item.discipline,
+          categoryKey: item.categoryKey,
+        },
+      },
+    });
+    const scoreRule = await prisma.scoreRule.findFirst({
+      where: {
+        seasonId: season.id,
+        discipline: item.discipline,
+        categoryKey: item.categoryKey,
+      },
+    });
+
+    if (!category || !scoreRule) {
+      throw new Error(`DEMO_SCORE_RULE_NOT_FOUND:${item.discipline}:${item.categoryKey}`);
+    }
+
+    const eventDate = new Date(`${item.eventDate}T09:00:00.000Z`);
+    const finishTimeSeconds = parseTimeToSeconds(item.finishTime);
+
+    if (finishTimeSeconds === null) {
+      throw new Error(`DEMO_INVALID_FINISH_TIME:${item.finishTime}`);
+    }
+
+    const fifthPlaceTimeSeconds = parseTimeToSeconds(item.fifthPlaceTime);
+
+    if (fifthPlaceTimeSeconds === null) {
+      throw new Error(`DEMO_INVALID_FIFTH_PLACE_TIME:${item.fifthPlaceTime}`);
+    }
+
+    const event = await upsertDemoEvent({
       eventName: item.eventName,
-      eventDate: item.eventDate,
+      eventDate,
+      discipline: item.discipline,
+      distanceLabel: item.distanceLabel,
+      protocolUrl: item.protocolUrl,
+      categoryId: category.id,
+    });
+
+    const submission = await upsertDemoSubmission({
+      athleteId: athleteRef.athlete.id,
+      seasonId: season.id,
+      eventId: event.id,
+      eventName: item.eventName,
+      eventDate,
       discipline: item.discipline,
       distanceLabel: item.distanceLabel,
       ageGroupClaimed: item.ageGroupClaimed,
       finishTime: item.finishTime,
+      finishTimeSeconds,
       protocolUrl: item.protocolUrl,
-      comment: "Демо-заполнение для проверки рейтинга",
     });
 
-    await reviewSubmission(
-      submission.id,
-      "approve",
-      "Демо-подтверждение для просмотра рейтинга",
-      {
-        categoryKey: item.categoryKey,
-        fifthPlaceTime: item.fifthPlaceTime,
-      },
+    const lagPercent = calculateLagPercent(
+      finishTimeSeconds,
+      fifthPlaceTimeSeconds,
     );
+    const awardedPoints = calculatePoints(scoreRule.basePoints, lagPercent);
+
+    await prisma.verifiedResult.upsert({
+      where: {
+        submissionId: submission.id,
+      },
+      update: {
+        athleteId: athleteRef.athlete.id,
+        seasonId: season.id,
+        eventId: event.id,
+        eventCategoryId: category.id,
+        ageGroupUsed: item.ageGroupClaimed,
+        fifthPlaceTimeSeconds,
+        lagPercent: new Prisma.Decimal(lagPercent),
+        awardedPoints,
+        verificationMode: VerificationMode.MANUAL,
+        scoreRuleId: scoreRule.id,
+      },
+      create: {
+        athleteId: athleteRef.athlete.id,
+        seasonId: season.id,
+        submissionId: submission.id,
+        eventId: event.id,
+        eventCategoryId: category.id,
+        ageGroupUsed: item.ageGroupClaimed,
+        fifthPlaceTimeSeconds,
+        lagPercent: new Prisma.Decimal(lagPercent),
+        awardedPoints,
+        verificationMode: VerificationMode.MANUAL,
+        scoreRuleId: scoreRule.id,
+      },
+    });
   }
+
+  await recalculateSeasonRanking(season.id);
 
   return listLeaderboard();
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ScoreBreakdown } from "@/components/score-breakdown";
 import { getPublicAthleteProfile } from "@/lib/db";
+import { isCountedTowardTopThree } from "@/lib/ranking";
 import { formatDate } from "@/lib/time";
 
 export default async function AthletePublicPage({
@@ -79,7 +81,8 @@ export default async function AthletePublicPage({
               >
                 <p className="text-lg font-semibold">{result.submission.eventNameRaw}</p>
                 <p className="mt-2 text-sm leading-6 text-white/80">
-                  {result.submission.distanceLabel} • {result.awardedPoints} pts
+                  {result.submission.distanceLabel} • {result.awardedPoints} pts из{" "}
+                  {result.scoreRule.basePoints}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-white/70">
                   {formatDate(result.submission.eventDate)} • группа{" "}
@@ -102,7 +105,7 @@ export default async function AthletePublicPage({
         </div>
 
         <div className="mt-6 grid gap-4">
-          {entry.athlete.verifiedResults.map((result) => (
+          {entry.athlete.verifiedResults.map((result, index) => (
             <article
               key={result.id}
               className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-5"
@@ -120,15 +123,28 @@ export default async function AthletePublicPage({
                     {result.submission.finishTimeRaw}
                   </p>
                 </div>
-                <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-right text-emerald-700">
+                <div
+                  className={`rounded-[1.25rem] px-4 py-3 text-right ${
+                    isCountedTowardTopThree(index)
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border border-slate-200 bg-slate-50 text-slate-600"
+                  }`}
+                >
                   <p className="text-xs uppercase tracking-[0.18em]">
-                    Очки
+                    {isCountedTowardTopThree(index) ? "В зачете" : "Резерв"}
                   </p>
                   <p className="mt-1 text-2xl font-semibold">
                     {result.awardedPoints}
                   </p>
                 </div>
               </div>
+              <ScoreBreakdown
+                ageGroupUsed={result.ageGroupUsed}
+                awardedPoints={result.awardedPoints}
+                basePoints={result.scoreRule.basePoints}
+                fifthPlaceTimeSeconds={result.fifthPlaceTimeSeconds}
+                lagPercent={result.lagPercent.toString()}
+              />
             </article>
           ))}
         </div>

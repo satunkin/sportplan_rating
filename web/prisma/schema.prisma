@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 enum UserRole {
@@ -55,15 +55,17 @@ enum ReviewDecision {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String?      @unique
-  telegramId  String?      @unique
-  role        UserRole     @default(ATHLETE)
-  athlete     Athlete?
-  reviews     ManualReview[]
-  auditLogs   AuditLog[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id              String              @id @default(cuid())
+  email           String?             @unique
+  passwordHash String?
+  telegramId      String?             @unique
+  role            UserRole            @default(ATHLETE)
+  athlete         Athlete?
+  reviews         ManualReview[]
+  auditLogs       AuditLog[]
+  magicLinkTokens MagicLinkToken[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 }
 
 model Athlete {
@@ -259,4 +261,16 @@ model AuditLog {
   actor       User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
 
   @@index([entityType, entityId])
+}
+
+model MagicLinkToken {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
