@@ -1,29 +1,37 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="page-shell flex min-h-screen flex-col">
       <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-10 sm:px-10 lg:px-12">
-        <div className="mb-14 flex flex-col gap-6 border-b border-border pb-10 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-14 flex flex-col gap-6 border-b border-border pb-10">
           <div className="max-w-3xl">
             <p className="mb-3 inline-flex rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-              Cyclon Rating
+            <p className="mb-3 inline-flex rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold tracking-[0.08em] text-accent">
+              SportPlan rating
             </p>
             <h1 className="max-w-4xl text-5xl font-semibold tracking-tight text-accent-strong sm:text-6xl">
-              Сезонный рейтинг для любителей бега, вело, плавания и триатлона.
+              Сезонный рейтинг атлетов
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-              Платформа считает рейтинг по сумме трех лучших стартов за сезон,
-              проверяет результаты и показывает прозрачную публичную таблицу.
-            </p>
-          </div>
-          <div className="grid gap-3 rounded-[2rem] border border-border bg-surface px-6 py-5 shadow-[0_20px_80px_rgba(27,42,51,0.08)]">
-            <p className="text-sm uppercase tracking-[0.2em] text-muted">
-              MVP focus
-            </p>
-            <p className="text-3xl font-semibold text-accent-strong">1000</p>
-            <p className="max-w-xs text-sm leading-6 text-muted">
-              участников на сезон без перегруза по инфраструктуре и ручной
-              модерации.
-            </p>
+            <div className="mt-6 flex flex-wrap items-start gap-x-4 gap-y-3">
+              <p className="max-w-3xl text-lg leading-8 text-muted">
+                Платформа считает рейтинг по сумме трех лучших результатов на
+                соревнованиях по бегу, плаванию, велоспорту и триатлону
+              </p>
+              <div className="group relative">
+                <button
+                  className="inline-flex items-center rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                  type="button"
+                >
+                  Как считается рейтинг
+                </button>
+                <div className="pointer-events-none absolute left-0 top-full mt-3 w-80 rounded-[1.25rem] border border-border bg-white px-4 py-4 text-sm leading-6 text-muted opacity-0 shadow-[0_18px_50px_rgba(27,42,51,0.14)] transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                  В рейтинг идут три лучших старта. Очки зависят от категории
+                  дистанции, а также от разницы результата спортсмена с 5-м
+                  местом в его возрастной группе.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -38,6 +46,26 @@ export default function Home() {
               <li>Ручная и полуавтоматическая валидация результатов.</li>
               <li>Подсчет очков и публичная таблица рейтинга.</li>
             </ul>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
+                href="/register"
+              >
+                Зарегистрироваться
+              </Link>
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-white/75 px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-white"
+                href="/cabinet"
+              >
+                Открыть кабинет
+              </Link>
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-surface px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-white"
+                href="/leaderboard"
+              >
+                Смотреть рейтинг
+              </Link>
+            </div>
           </article>
 
           <article className="rounded-[2rem] bg-accent px-7 py-7 text-white shadow-[0_24px_90px_rgba(19,58,86,0.22)]">

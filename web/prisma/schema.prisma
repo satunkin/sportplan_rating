@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 enum UserRole {
@@ -155,6 +155,7 @@ model ResultSubmission {
   seasonId          String
   eventId           String?
   eventNameRaw      String
+  eventDate         DateTime
   discipline        Discipline
   distanceLabel     String
   ageGroupClaimed   String
@@ -185,7 +186,7 @@ model VerifiedResult {
   eventCategoryId      String?
   ageGroupUsed         String
   fifthPlaceTimeSeconds Int
-  lagPercent           Decimal          @db.Decimal(6, 2)
+  lagPercent           Decimal
   awardedPoints        Int
   verificationMode     VerificationMode
   scoreRuleId          String
