@@ -39,16 +39,20 @@ Current product state:
 - есть baseline SQL / validate / smoke-check path для Postgres и безопасный idempotent demo seed для удаленной БД;
 - есть duplicate guard для точных повторов одного и того же результата: повторная подача блокируется у спортсмена, а duplicate approve в админке останавливается с явным предупреждением;
 - есть минимальный event-management inside moderation: approve flow переиспользует существующий `Event` по ключу старта и позволяет сохранить/обновить локацию события;
+- в админской moderation queue появились подсказки по ручной проверке: отсутствие protocol URL, mismatch возрастной группы с профилем, related submissions того же спортсмена и auto-fill категории/локации от existing event;
+- спорные кейсы в manual moderation теперь требуют явного подтверждения и комментария модератора: отсутствие публичного протокола, merged age groups, группа меньше `5` финишеров;
+- ranking recalculation теперь соответствует зафиксированному tie-break: лучший результат, затем второй, затем третий, затем число подтвержденных стартов, затем shared place;
 - есть hosted deployment prep: `/api/health`, `deploy:check` и Vercel-oriented env checklist;
 - `deploy:check` теперь проверяет не только env-поля, но и доступность PostgreSQL, наличие ключевых Prisma-таблиц и SMTP handshake;
+- production env для `DATABASE_URL` / `DIRECT_URL` уже заведены на реальные Supabase строки;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
 
 Current limitation:
 - это еще не production-ready MVP;
-- авторизация стала безопаснее на уровне cookie/session, athlete magic link и admin credentials, но Telegram auth пока не подключен, а SMTP для production еще не настроен;
+- авторизация стала безопаснее на уровне cookie/session, athlete magic link и admin credentials, но Telegram auth пока не подключен, а SMTP для production сознательно отложен на более поздний этап;
 - протоколы соревнований не импортируются автоматически;
 - runtime уже живет на Postgres-first path, но production env layout (`DATABASE_URL`, `DIRECT_URL`, SMTP, public URL) еще не доведен до финального deploy shape;
-- hosted deploy пока блокируется отсутствием production env setup: PostgreSQL `DATABASE_URL`, SMTP, `APP_BASE_URL`, `SESSION_SECRET`, и production admin credentials.
+- hosted deploy пока блокируется как минимум отсутствием production SMTP setup и публичного `APP_BASE_URL`; кроме того, локальная reachability Supabase может зависеть от среды выполнения;
 - нет production deployment path для размещенного сайта;
 - нет рабочего Telegram-бота для участников.
 
@@ -121,9 +125,12 @@ Implemented product slices:
 - admin login with env-based credentials and dev fallback;
 - manual moderation queue;
 - approval/rejection flow;
+- moderation helpers for protocol-aware manual review;
+- explicit moderator confirmation flow for ambiguous manual-review cases;
 - score rules seed;
 - verified results creation;
 - ranking recalculation;
+- ranking tie-break logic with shared-place handling;
 - public leaderboard;
 - public athlete page;
 - demo data generation;
@@ -134,7 +141,7 @@ Implemented product slices:
 Implemented developer validation:
 - `npm run lint` passes after recent working cycles;
 - `npm run build` passes after recent working cycles;
-- `npm run db:smoke:postgres` reaches the configured Supabase database successfully;
+- `npm run db:smoke:postgres` validates the runtime PostgreSQL path, but in some local/sandbox environments may fail if the current runtime cannot reach Supabase over the network;
 - `npm run db:seed:demo` is rerunnable and produces a valid demo ranking snapshot on Supabase.
 - `npm run deploy:check` теперь задуман как реальный pre-deploy smoke check для env + DB + SMTP readiness.
 
@@ -158,6 +165,7 @@ Current technical debt:
 - Postgres runtime уже основной, но env-конвенция еще transitional: часть команд умеет fallback на `DATABASE_URL_POSTGRES`, а production-shaped `DATABASE_URL` / `DIRECT_URL` еще не закреплены как единственная схема;
 - Prisma CLI path зависит от reachability `DIRECT_URL`; для Supabase direct host в некоторых локальных средах может понадобиться `session pooler :5432` вместо IPv6-only direct host;
 - participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth все еще env-based и без RBAC/2FA;
+- deploy-ready path частично упирается в среду: even with real Supabase envs local smoke checks могут падать, если текущий runtime не достукивается до хоста БД;
 - some UI texts still reflect foundation wording and need polishing during product pass.
 
 ---
@@ -207,10 +215,10 @@ Launch checklist for MVP, aligned with PRD and current launch scope:
 
 P0 — mandatory before launch:
 1. define and test hosted deployment path for the website on the now-active PostgreSQL runtime;
-2. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check);
+2. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
 3. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
-4. extend the new event-management baseline into protocol-aware moderation helpers;
-5. continue closing remaining ranking correctness gaps beyond exact duplicates;
+4. continue extending manual moderation toward protocol-aware helpers and later protocol import;
+5. continue closing remaining ranking correctness gaps beyond exact duplicates and tie-break;
 6. run end-to-end launch validation on hosted environment.
 
 P1 — important after P0, before broader growth:
@@ -229,11 +237,10 @@ P3 — after launch foundation:
 3. add richer public experience and secondary product polish.
 
 Current best next coding step:
-- provision the real deployment inputs and then finish the infra branch:
-  - move the now-working Supabase string into the final `DATABASE_URL` / `DIRECT_URL` layout;
-  - configure SMTP and `APP_BASE_URL` for magic-link auth;
-  - set `SESSION_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD_HASH`;
-  - then rerun `npm run deploy:check` and continue toward hosted deploy / browser-level validation.
+- keep improving the P0 web flow without waiting for SMTP:
+  - continue moderation-side helpers around protocol/manual review;
+  - verify ranking behavior on more edge cases;
+  - then return to hosted deploy validation once `APP_BASE_URL` and SMTP are ready.
 
 ---
 
@@ -266,3 +273,6 @@ Current best next coding step:
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.
 - `2026-05-13`: admin moderation now reuses existing event entities by event fingerprint instead of blindly creating a new Event on every approve.
 - `2026-05-13`: `deploy:check` strengthened from env-only validation to a real pre-deploy smoke check covering PostgreSQL connectivity, required Prisma tables, and SMTP handshake.
+- `2026-05-13`: admin moderation queue gained protocol-aware helper warnings and defaults for manual review.
+- `2026-05-13`: season ranking recalculation aligned with the fixed tie-break policy and shared-place behavior.
+- `2026-05-14`: ambiguous manual-review approvals now require explicit moderator confirmation flags and a written reason.

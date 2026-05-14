@@ -63,13 +63,13 @@ export default async function LeaderboardPage({
           </article>
           <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-5">
             <p className="text-sm uppercase tracking-[0.18em] text-muted">
-              Учтено стартов
+              Подтверждено стартов
             </p>
             <p className="mt-2 text-3xl font-semibold text-accent-strong">
               {totalCountedResults}
             </p>
             <p className="mt-2 text-sm leading-6 text-muted">
-              попали в сумму лучших результатов
+              всего подтвержденных результатов в таблице
             </p>
           </article>
           <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-5">
@@ -127,7 +127,7 @@ export default async function LeaderboardPage({
                         {entry.totalPoints}
                       </p>
                       <p className="mt-1 text-sm text-muted">
-                        {entry.scoredResultsCount} из 3 результатов
+                        {entry.scoredResultsCount} подтвержденных стартов
                       </p>
                     </td>
                     <td className="px-5 py-4">

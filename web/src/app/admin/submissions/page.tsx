@@ -79,6 +79,29 @@ export default async function AdminSubmissionsPage({
           </div>
         ) : null}
 
+        {error === "invalid_fifth_place_time" ? (
+          <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Не удалось разобрать время 5-го места
+            {submissionId ? ` для заявки ${submissionId}` : ""}. Используйте
+            формат вроде `41:50` или `01:28:20`.
+          </div>
+        ) : null}
+
+        {error === "missing_scoring_input" ? (
+          <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Для подтверждения заявки нужны категория дистанции и время 5-го
+            места{submissionId ? ` (${submissionId})` : ""}.
+          </div>
+        ) : null}
+
+        {error === "manual_review_reason_required" ? (
+          <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Для ручного подтверждения спорного кейса нужен комментарий
+            модератора{submissionId ? ` по заявке ${submissionId}` : ""}:
+            зафиксируйте, на каком основании результат принят.
+          </div>
+        ) : null}
+
         {submissions.length === 0 ? (
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-border bg-white/65 px-6 py-8 text-sm leading-7 text-muted">
             Сейчас очередь пуста. Добавьте старт из кабинета спортсмена, чтобы
@@ -109,6 +132,32 @@ export default async function AdminSubmissionsPage({
                       Группа: {submission.ageGroupClaimed} • Время:{" "}
                       {submission.finishTimeRaw}
                     </p>
+                    <div className="mt-3 grid gap-3">
+                      {!submission.moderationSummary.hasProtocolUrl ? (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
+                          У заявки нет ссылки на публичный протокол. По правилам
+                          это ручная проверка: лучше добавить в комментарий,
+                          на основании чего результат был подтвержден.
+                        </div>
+                      ) : null}
+
+                      {!submission.moderationSummary
+                        .claimedAgeGroupMatchesProfile &&
+                      submission.moderationSummary.profileAgeGroup ? (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
+                          Заявленная возрастная группа не совпадает с профилем
+                          спортсмена: в заявке указано{" "}
+                          <span className="font-semibold">
+                            {submission.ageGroupClaimed}
+                          </span>
+                          , а в профиле сейчас{" "}
+                          <span className="font-semibold">
+                            {submission.moderationSummary.profileAgeGroup}
+                          </span>
+                          . Проверьте merged age groups или ошибку ввода.
+                        </div>
+                      ) : null}
+                    </div>
                     <p className="mt-2 text-sm leading-6 text-muted">
                       Протокол:{" "}
                       <a
@@ -125,6 +174,12 @@ export default async function AdminSubmissionsPage({
                         Для этого старта уже есть нормализованная карточка
                         события. При подтверждении заявка привяжется к existing
                         event вместо создания нового дубля.
+                        {submission.moderationSummary.matchedEventCategoryLabel ? (
+                          <div className="mt-2 text-emerald-900">
+                            Текущая категория события:{" "}
+                            {submission.moderationSummary.matchedEventCategoryLabel}
+                          </div>
+                        ) : null}
                         {submission.matchedEvent.location ? (
                           <div className="mt-2 text-emerald-900">
                             Локация: {submission.matchedEvent.location}
@@ -138,6 +193,21 @@ export default async function AdminSubmissionsPage({
                         подтверждении система заведет новый `Event`.
                       </div>
                     )}
+                    {submission.moderationSummary.relatedSubmissions.length > 0 ? (
+                      <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
+                        Найдены другие заявки этого же спортсмена на тот же
+                        старт:
+                        <div className="mt-2 space-y-2 text-amber-900">
+                          {submission.moderationSummary.relatedSubmissions.map(
+                            (item) => (
+                              <div key={item.id}>
+                                {item.status} • {item.finishTimeRaw} • {item.id}
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                     {submission.comment ? (
                       <p className="mt-3 rounded-2xl border border-border bg-surface px-4 py-4 text-sm leading-6 text-muted">
                         Комментарий спортсмена: {submission.comment}
@@ -151,7 +221,9 @@ export default async function AdminSubmissionsPage({
                         <input name="submissionId" type="hidden" value={submission.id} />
                         <select
                           className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
-                          defaultValue=""
+                          defaultValue={
+                            submission.moderationSummary.matchedEventCategoryKey ?? ""
+                          }
                           name="categoryKey"
                           required
                         >
@@ -183,6 +255,39 @@ export default async function AdminSubmissionsPage({
                           name="notes"
                           placeholder="Комментарий модератора"
                         />
+                        <label className="flex items-start gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-sm text-muted">
+                          <input
+                            className="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                            name="confirmNoPublicProtocol"
+                            type="checkbox"
+                          />
+                          <span>
+                            Подтверждаю, что публичного протокола нет или он не
+                            приложен, и решение принимается вручную.
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-sm text-muted">
+                          <input
+                            className="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                            name="confirmMergedAgeGroups"
+                            type="checkbox"
+                          />
+                          <span>
+                            В опубликованном протоколе возрастные группы
+                            объединены, поэтому результат подтверждается вручную.
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-sm text-muted">
+                          <input
+                            className="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                            name="confirmLessThanFiveFinishers"
+                            type="checkbox"
+                          />
+                          <span>
+                            В группе меньше 5 финишеров, поэтому benchmark
+                            подтверждается вручную администратором.
+                          </span>
+                        </label>
                         <button
                           className="inline-flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                           type="submit"

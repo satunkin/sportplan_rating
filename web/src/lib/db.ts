@@ -463,6 +463,9 @@ async function findEventByFingerprint(fingerprint: EventFingerprint) {
       discipline: fingerprint.discipline,
       distanceLabel: fingerprint.distanceLabel,
     },
+    include: {
+      category: true,
+    },
   });
 }
 
@@ -831,9 +834,45 @@ export async function listPendingSubmissions() {
     ),
   );
 
+  const relatedSubmissions = await Promise.all(
+    submissions.map((submission) =>
+      prisma.resultSubmission.findMany({
+        where: {
+          athleteId: submission.athleteId,
+          eventNameRaw: submission.eventNameRaw,
+          eventDate: submission.eventDate,
+          discipline: submission.discipline,
+          distanceLabel: submission.distanceLabel,
+          NOT: {
+            id: submission.id,
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+          finishTimeRaw: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+    ),
+  );
+
   return submissions.map((submission, index) => ({
     ...submission,
     matchedEvent: eventMatches[index],
+    moderationSummary: {
+      hasProtocolUrl: Boolean(submission.protocolUrl),
+      claimedAgeGroupMatchesProfile: submission.athlete.seasonAgeGroup
+        ? submission.athlete.seasonAgeGroup === submission.ageGroupClaimed
+        : true,
+      profileAgeGroup: submission.athlete.seasonAgeGroup,
+      relatedSubmissions: relatedSubmissions[index],
+      matchedEventCategoryLabel: eventMatches[index]?.category?.label ?? null,
+      matchedEventCategoryKey: eventMatches[index]?.category?.categoryKey ?? null,
+    },
   }));
 }
 
@@ -851,6 +890,7 @@ async function recalculateSeasonRanking(seasonId: string) {
     {
       athleteId: string;
       bestScores: number[];
+      verifiedResultsCount: number;
     }
   >();
 
@@ -858,7 +898,10 @@ async function recalculateSeasonRanking(seasonId: string) {
     const bucket = grouped.get(item.athleteId) ?? {
       athleteId: item.athleteId,
       bestScores: [],
+      verifiedResultsCount: 0,
     };
+
+    bucket.verifiedResultsCount += 1;
 
     if (bucket.bestScores.length < 3) {
       bucket.bestScores.push(item.awardedPoints);
@@ -870,12 +913,23 @@ async function recalculateSeasonRanking(seasonId: string) {
   const leaderboard = Array.from(grouped.values())
     .map((entry) => ({
       athleteId: entry.athleteId,
-      scoredResultsCount: entry.bestScores.length,
+      bestScores: [
+        entry.bestScores[0] ?? 0,
+        entry.bestScores[1] ?? 0,
+        entry.bestScores[2] ?? 0,
+      ],
+      scoredResultsCount: entry.verifiedResultsCount,
       totalPoints: entry.bestScores.reduce((sum, score) => sum + score, 0),
     }))
     .sort((left, right) => {
       if (right.totalPoints !== left.totalPoints) {
         return right.totalPoints - left.totalPoints;
+      }
+
+      for (let index = 0; index < 3; index += 1) {
+        if (right.bestScores[index] !== left.bestScores[index]) {
+          return right.bestScores[index] - left.bestScores[index];
+        }
       }
 
       return right.scoredResultsCount - left.scoredResultsCount;
@@ -885,16 +939,42 @@ async function recalculateSeasonRanking(seasonId: string) {
     where: { seasonId },
   });
 
+  let previousEntry:
+    | {
+        totalPoints: number;
+        bestScores: number[];
+        scoredResultsCount: number;
+        rank: number;
+      }
+    | undefined;
+
   for (const [index, entry] of leaderboard.entries()) {
+    const rank =
+      previousEntry &&
+      previousEntry.totalPoints === entry.totalPoints &&
+      previousEntry.bestScores.every(
+        (score, scoreIndex) => score === entry.bestScores[scoreIndex],
+      ) &&
+      previousEntry.scoredResultsCount === entry.scoredResultsCount
+        ? previousEntry.rank
+        : index + 1;
+
     await prisma.rankingEntry.create({
       data: {
         athleteId: entry.athleteId,
         seasonId,
         totalPoints: entry.totalPoints,
-        rank: index + 1,
+        rank,
         scoredResultsCount: entry.scoredResultsCount,
       },
     });
+
+    previousEntry = {
+      totalPoints: entry.totalPoints,
+      bestScores: entry.bestScores,
+      scoredResultsCount: entry.scoredResultsCount,
+      rank,
+    };
   }
 }
 
@@ -906,6 +986,11 @@ export async function reviewSubmission(
     categoryKey: string;
     fifthPlaceTime: string;
     eventLocation?: string;
+    moderationFlags?: {
+      confirmNoPublicProtocol: boolean;
+      confirmMergedAgeGroups: boolean;
+      confirmLessThanFiveFinishers: boolean;
+    };
   },
 ) {
   await ensureDatabaseReady();
@@ -951,6 +1036,16 @@ export async function reviewSubmission(
   if (decision === "approve") {
     if (!scoringInput?.categoryKey || !scoringInput.fifthPlaceTime) {
       throw new Error("SCORING_INPUT_REQUIRED");
+    }
+
+    const requiresManualReason =
+      !submissionBefore.protocolUrl ||
+      scoringInput.moderationFlags?.confirmNoPublicProtocol ||
+      scoringInput.moderationFlags?.confirmMergedAgeGroups ||
+      scoringInput.moderationFlags?.confirmLessThanFiveFinishers;
+
+    if (requiresManualReason && !notes.trim()) {
+      throw new Error("MANUAL_REVIEW_REASON_REQUIRED");
     }
 
     const fifthPlaceTimeSeconds = parseTimeToSeconds(scoringInput.fifthPlaceTime);
@@ -1095,6 +1190,7 @@ export async function reviewSubmission(
         eventNameRaw: submissionBefore.eventNameRaw,
         categoryKey: scoringInput?.categoryKey ?? null,
         fifthPlaceTime: scoringInput?.fifthPlaceTime ?? null,
+        moderationFlags: scoringInput?.moderationFlags ?? null,
       },
     },
   });

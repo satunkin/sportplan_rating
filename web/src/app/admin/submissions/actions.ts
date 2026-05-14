@@ -12,12 +12,23 @@ export async function approveSubmission(formData: FormData) {
   const categoryKey = String(formData.get("categoryKey") ?? "");
   const fifthPlaceTime = String(formData.get("fifthPlaceTime") ?? "");
   const eventLocation = String(formData.get("eventLocation") ?? "");
+  const confirmNoPublicProtocol =
+    String(formData.get("confirmNoPublicProtocol") ?? "") === "on";
+  const confirmMergedAgeGroups =
+    String(formData.get("confirmMergedAgeGroups") ?? "") === "on";
+  const confirmLessThanFiveFinishers =
+    String(formData.get("confirmLessThanFiveFinishers") ?? "") === "on";
 
   try {
     await reviewSubmission(submissionId, "approve", notes, {
       categoryKey,
       fifthPlaceTime,
       eventLocation,
+      moderationFlags: {
+        confirmNoPublicProtocol,
+        confirmMergedAgeGroups,
+        confirmLessThanFiveFinishers,
+      },
     });
   } catch (error) {
     if (
@@ -26,6 +37,39 @@ export async function approveSubmission(formData: FormData) {
     ) {
       redirect(
         `/admin/submissions?error=duplicate_verified_submission&submissionId=${encodeURIComponent(
+          submissionId,
+        )}`,
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_FIFTH_PLACE_TIME"
+    ) {
+      redirect(
+        `/admin/submissions?error=invalid_fifth_place_time&submissionId=${encodeURIComponent(
+          submissionId,
+        )}`,
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "SCORING_INPUT_REQUIRED"
+    ) {
+      redirect(
+        `/admin/submissions?error=missing_scoring_input&submissionId=${encodeURIComponent(
+          submissionId,
+        )}`,
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "MANUAL_REVIEW_REASON_REQUIRED"
+    ) {
+      redirect(
+        `/admin/submissions?error=manual_review_reason_required&submissionId=${encodeURIComponent(
           submissionId,
         )}`,
       );
