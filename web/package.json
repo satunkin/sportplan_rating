@@ -18,6 +18,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed:demo": "node scripts/seed-demo.mjs",
     "db:baseline:postgres": "mkdir -p prisma/postgres && prisma migrate diff --config prisma.config.ts --from-empty --to-schema-datamodel prisma/schema.prisma --script --output prisma/postgres/baseline.sql",
+    "db:import:protocol": "node scripts/import-event-protocol.mjs",
+    "db:import:protocol:url": "node scripts/import-event-protocol-from-url.mjs",
     "db:smoke:postgres": "npm run prisma:generate && node scripts/check-postgres-runtime.mjs",
     "db:status:postgres": "prisma migrate status --config prisma.config.ts",
     "prisma:generate": "prisma generate",
@@ -30,11 +32,13 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "better-sqlite3": "^12.10.0",
+    "cheerio": "^1.2.0",
     "next": "16.2.6",
     "nodemailer": "^8.0.7",
     "prisma": "^7.8.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

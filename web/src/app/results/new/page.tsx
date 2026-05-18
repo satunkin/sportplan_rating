@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ResultSubmissionForm } from "@/app/results/new/form";
+import { TechnicalNote } from "@/components/technical-note";
 import { getAthleteProfileByUserId } from "@/lib/db";
 import { getAthleteUserSession } from "@/lib/session";
 
@@ -29,17 +30,16 @@ export default async function NewResultPage() {
             Подача результата
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            Заявка сохраняется в рабочую Postgres-базу и получает статус
-            `pending_manual_review`. Доступ к форме опирается на cookie-сессию
-            спортсмена, чтобы flow уже работал как реальный личный кабинет.
+            Отправьте старт на проверку, чтобы он попал в очередь модерации и
+            после подтверждения начал участвовать в вашем рейтинге сезона.
           </p>
-          <div className="mt-8 rounded-[1.5rem] border border-white/15 bg-white/8 px-5 py-5">
-            <p className="text-sm leading-7 text-white/80">
-              Для MVP критично уже сейчас собирать полные входные данные:
-              соревнование, дисциплину, группу, итоговое время и ссылку на
-              официальный протокол. Точный дубль того же результата система
-              теперь не даст отправить повторно.
-            </p>
+          <div className="mt-8">
+            <TechnicalNote title="Техническая заметка о заявке">
+              Заявка сохраняется в рабочую Postgres-базу со статусом
+              `pending_manual_review`. Для MVP система уже блокирует точный
+              дубль одного и того же результата. Ссылка на протокол желательна:
+              без нее администратору потребуется явное ручное подтверждение.
+            </TechnicalNote>
           </div>
           <Link
             className="mt-8 inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline"
@@ -57,8 +57,9 @@ export default async function NewResultPage() {
             Добавьте результат для проверки и будущего расчета рейтинга
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            Предзаполняем вашу возрастную группу из профиля сезона, но вы можете
-            поправить ее по официальному протоколу конкретного старта.
+            Мы подставим возрастную группу из профиля, но вы можете исправить
+            ее по официальному протоколу конкретного соревнования, а также
+            указать места, если они уже известны.
           </p>
           <div className="mt-8">
             <ResultSubmissionForm suggestedAgeGroup={profile.seasonAgeGroup} />

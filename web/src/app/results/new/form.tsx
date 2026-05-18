@@ -98,11 +98,30 @@ export function ResultSubmissionForm({
         <input
           className={inputClassName}
           name="protocolUrl"
-          placeholder="https://..."
-          required
+          placeholder="https://... (если уже есть)"
           type="url"
         />
       </label>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <label className="text-sm font-medium text-foreground">
+          Место в абсолюте
+          <input
+            className={inputClassName}
+            name="placementOverall"
+            placeholder="Например, 17"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-foreground">
+          Место в возрастной группе
+          <input
+            className={inputClassName}
+            name="placementInAgeGroup"
+            placeholder="Например, 3"
+          />
+        </label>
+      </div>
 
       <label className="text-sm font-medium text-foreground">
         Комментарий

@@ -18,10 +18,9 @@ export default function AdminLoginPage() {
             Первая модерационная точка
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            Эта страница дает доступ к первой очереди проверки заявок. Базовый
-            production-ready путь здесь теперь идет через `ADMIN_EMAIL` и
-            `ADMIN_PASSWORD_HASH`, а `ADMIN_ACCESS_KEY` остается только как
-            временный fallback.
+            Эта страница открывает кабинет администратора. Войти можно через
+            env-админа (`ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH`) или через
+            администраторов, которых уже создали внутри системы.
           </p>
           <Link
             className="mt-8 inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline"
@@ -36,7 +35,7 @@ export default function AdminLoginPage() {
             Авторизация модератора
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-accent-strong">
-            Вход в очередь проверки результатов
+            Вход в кабинет администратора
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
             {authHint}

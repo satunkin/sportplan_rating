@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { RegisterForm } from "@/app/register/form";
+import { TechnicalNote } from "@/components/technical-note";
 
 export default function RegisterPage() {
   return (
@@ -14,16 +15,16 @@ export default function RegisterPage() {
             Регистрация спортсмена
           </h1>
           <p className="mt-5 text-base leading-7 text-white/82">
-            Профиль сохраняется в БД и привязывается к email и паролю, чтобы
-            участник мог вернуться в кабинет с нового устройства или после
-            очистки cookies.
+            Создайте профиль участника, чтобы подавать результаты, видеть свою
+            возрастную группу и отслеживать место в рейтинге сезона.
           </p>
-          <div className="mt-8 rounded-[1.5rem] border border-white/15 bg-white/8 px-5 py-5">
-            <p className="text-sm leading-7 text-white/80">
-              Сейчас мы уже считаем возраст на конец сезона и показываем
-              предварительную возрастную группу, чтобы позже безболезненно
-              подключить ranking engine.
-            </p>
+          <div className="mt-8">
+            <TechnicalNote title="Техническая заметка о регистрации">
+              Профиль сохраняется в БД и связан с email. Сейчас возрастная
+              группа определяется по возрасту на конец сезона: это пока
+              зафиксированное MVP-правило, нужное для связи front и scoring
+              engine.
+            </TechnicalNote>
           </div>
           <Link
             className="mt-8 inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline"
@@ -42,7 +43,7 @@ export default function RegisterPage() {
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
             После сохранения вы попадете в личный кабинет. Если профиль уже
-            существует, используйте страницу входа, а не повторную регистрацию.
+            существует, используйте страницу входа и не создавайте дубликат.
           </p>
           <div className="mt-8">
             <RegisterForm />

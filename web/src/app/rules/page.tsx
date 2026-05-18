@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { TechnicalNote } from "@/components/technical-note";
+
 const categoryGroups = [
   {
     title: "Бег",
@@ -61,10 +63,10 @@ export default function RulesPage() {
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-            Методология рейтинга
+            Правила рейтинга
           </p>
           <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-accent-strong sm:text-5xl">
-            Как Cyclon считает очки сезона
+            Как считаются очки и место в сезоне
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-8 text-muted sm:text-lg">
             В зачет идут только подтвержденные результаты внутри активного
@@ -91,13 +93,13 @@ export default function RulesPage() {
         <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <article className="rounded-[2rem] border border-border bg-white/78 px-7 py-7">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-              Базовый принцип
+              Как это работает для участника
             </p>
             <ol className="mt-5 grid gap-4 text-base leading-7 text-foreground">
               <li>1. Для каждого старта определяется категория дистанции.</li>
-              <li>2. Для возрастной группы ищется результат 5-го места.</li>
-              <li>3. Считается отставание спортсмена от этого ориентира.</li>
-              <li>4. Чем выше категория и меньше отставание, тем больше очков.</li>
+              <li>2. В вашей возрастной группе берется результат 5-го места.</li>
+              <li>3. Система сравнивает ваш финиш с этим ориентиром.</li>
+              <li>4. Чем сильнее старт и меньше отставание, тем больше очков.</li>
               <li>5. В итог сезона попадают только 3 лучших результата.</li>
             </ol>
           </article>
@@ -125,7 +127,7 @@ export default function RulesPage() {
               Что считается
             </p>
             <p className="mt-3 text-xl font-semibold text-accent-strong">
-              Только verified
+              Только подтвержденные результаты
             </p>
             <p className="mt-3 text-sm leading-6 text-muted">
               В рейтинг попадают только подтвержденные результаты внутри
@@ -138,7 +140,7 @@ export default function RulesPage() {
               Какой максимум
             </p>
             <p className="mt-3 text-xl font-semibold text-accent-strong">
-              До basePoints
+              До базовой стоимости категории
             </p>
             <p className="mt-3 text-sm leading-6 text-muted">
               За один старт нельзя получить больше базовой стоимости категории.
@@ -206,7 +208,7 @@ export default function RulesPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <article className="rounded-[2rem] border border-border bg-white/78 px-7 py-7">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-              Когда нужен review
+              Когда заявка уходит на ручную проверку
             </p>
             <ul className="mt-5 grid gap-3 text-base leading-7 text-foreground">
               {reviewCases.map((item) => (
@@ -236,6 +238,14 @@ export default function RulesPage() {
             </ol>
           </article>
         </section>
+
+        <TechnicalNote>
+          Ниже и на соседних страницах часть терминов пока остается технической:
+          `verified`, `basePoints`, формула MVP и логика manual review. Мы
+          сохраняем эти пояснения в интерфейсе специально, чтобы команда могла
+          быстрее синхронизировать UX с текущей backend-логикой, не теряя
+          прозрачности правил.
+        </TechnicalNote>
       </section>
     </main>
   );

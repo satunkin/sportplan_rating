@@ -1,0 +1,12 @@
+{
+  "organizer": "runc.run",
+  "sourceUrl": "https://results.runc.run/event/garden_ring_relay_2026/finishers/distance/499/",
+  "discipline": "RUNNING",
+  "eventName": "The Garden Ring Relay Race",
+  "eventDate": "2026-05-16",
+  "location": "Москва",
+  "distanceLabel": "15 км",
+  "normalizedProtocolPath": "../normalized/runc-run-garden-ring-relay-2026-15km.json",
+  "replaceExistingRows": true,
+  "notes": "Полный протокол собран из 9 HTML-страниц `runc.run`: 8493 строки, включая хвостовые статусные записи без финального места."
+}

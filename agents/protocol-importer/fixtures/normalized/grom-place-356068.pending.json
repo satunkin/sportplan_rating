@@ -1,0 +1,15 @@
+{
+  "organizer": "grom.place",
+  "sourceUrl": "https://my.raceresult.com/356068/#1_A5A45A",
+  "eventName": "Grom Tri Sprint - III этап",
+  "eventDate": "2025-08-17",
+  "location": "Москва",
+  "distanceLabel": "Спринт",
+  "sourceLinks": {
+    "xlsx": "https://api.raceresult.com/356068/RHVPXM9OSE399ZC0IBX28V23IGTDTZ77",
+    "pdf": "https://my.raceresult.com/356068/results/pdf?name=Result%20Lists%7C%D0%A1%D0%BF%D1%80%D0%B8%D0%BD%D1%82.%20%D0%90%D0%B1%D1%81%D0%BE%D0%BB%D1%8E%D1%82&contest=1&lang=ru"
+  },
+  "rowCount": 0,
+  "rows": [],
+  "extractedAt": "links-resolved"
+}

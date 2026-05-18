@@ -17,15 +17,25 @@
 
 ## 1. Current State
 
-Updated: `2026-05-13`
-Project phase: `MVP foundation + demo flow`
+Updated: `2026-05-18`
+Project phase: `MVP information architecture + protocol-import foundation`
 Primary app path: `/Users/satunkin/Codex_projects/rating/web`
 Git remote: `https://github.com/satunkin/sportplan_rating.git`
 Current branch: `main`
 
 Current product state:
-- есть главная страница, кабинет, подача результата, админский вход, очередь модерации, публичный рейтинг, публичная карточка спортсмена;
+- есть главная страница, role-based `/cabinet`, подача результата, админский вход, очередь модерации, публичный рейтинг, публичная карточка спортсмена и публичная карточка соревнования;
+- `/cabinet` теперь разводит сценарии по роли: спортсмен получает настройки публичного профиля и управление своими результатами, администратор — соревнования, спортсменов, администраторов и быстрый вход в moderation queue;
+- есть новый публичный раздел `/events` со списком соревнований и страницами `/events/[eventId]`;
+- администратор может создавать, редактировать и удалять карточки соревнований, а также редактировать карточку спортсмена и его результаты из кабинета;
+- спортсмен может менять имя для публичной карточки, включать/выключать публикацию всех результатов, редактировать прошлые результаты с повторной отправкой на подтверждение и удалить свой профиль;
+- в модель результата добавлены `placementOverall` и `placementInAgeGroup`, чтобы карточки соревнований и спортсменов показывали не только время и очки, но и места;
+- в модель спортсмена добавлены `publicDisplayName` и `showPublicResults` для контроля публичного профиля;
+- админский login теперь пропускает не только env-admin, но и пользователей с ролью `ADMIN`, созданных из кабинета;
 - есть публичная страница методологии рейтинга;
+- есть athlete-facing UX pass: главная теперь показывает сам рейтинг, краткие правила, путь участника и быстрые ссылки на кабинет и полные правила;
+- есть общий footer с юридическими ссылками и базовые placeholder-страницы `Пользовательское соглашение` и `Соглашение о персональных данных`;
+- есть заметный UI-паттерн `TechnicalNote` для сохранения внутренних технических пояснений рядом с пользовательскими текстами;
 - есть UI-объяснение расчета очков внутри leaderboard, кабинета и публичной карточки спортсмена;
 - есть demo seed для наполнения тестовыми участниками и рейтингом;
 - есть scoring foundation: категории, базовые очки, расчет lag percent, начисление очков, top-3 ranking logic;
@@ -46,15 +56,32 @@ Current product state:
 - `deploy:check` теперь проверяет не только env-поля, но и доступность PostgreSQL, наличие ключевых Prisma-таблиц и SMTP handshake;
 - production env для `DATABASE_URL` / `DIRECT_URL` уже заведены на реальные Supabase строки;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
+- добавлен отдельный проектный субагент `agents/protocol-importer` с organizer-specific skills для импорта протоколов;
+- зафиксирован единый контракт данных для нормализованного протокола и request-файла импорта;
+- добавлен CLI-импортёр `npm run db:import:protocol`, который умеет прогонять `dry-run` и записывать строки протокола в `Event` + `EventProtocolRow`;
+- в проект уже положены реальные raw + normalized артефакты для двух организаторов:
+  - `runc.run`: полный протокол `15 км` на `8493` строки;
+  - `grom.place` / `RaceResult`: `xlsx` + `pdf` и нормализованный протокол `Спринт` на `268` строк;
+- оба request-файла уже проходят через `dry-run` импортёр без ручной правки.
+- оба протокола уже записаны в PostgreSQL:
+  - `Grom Tri Sprint - III этап` (`268` protocol rows);
+  - `The Garden Ring Relay Race` 15 km (`8493` protocol rows);
+- create/update карточки соревнования теперь умеют auto-import protocol rows при сохранении поддержанной ссылки `runc.run` или `RaceResult`;
+- parser layer больше не завязан на две точные ссылки: появился organizer-level live import для `runc.run` и `RaceResult` (`my.raceresult.com` / related hosts), который скачивает источник по URL, нормализует строки и пишет их в `EventProtocolRow`.
 
 Current limitation:
 - это еще не production-ready MVP;
 - авторизация стала безопаснее на уровне cookie/session, athlete magic link и admin credentials, но Telegram auth пока не подключен, а SMTP для production сознательно отложен на более поздний этап;
-- протоколы соревнований не импортируются автоматически;
+- импорт протоколов пока не встроен в UI и не запускается автоматически из карточки соревнования;
+- импорт протоколов пока file-based и CLI-first: до UI в кабинете ещё не доведён;
+- `runc.run` и `grom.place` уже имеют рабочие артефакты, но новые организаторы пока нужно добавлять вручную через отдельный skill;
+- auto-import из кабинета уже работает через live parser для `runc.run` и `RaceResult`, но остальные организаторы по-прежнему не поддержаны;
+- создание администраторов уже переведено в UI, но полноценный audit trail still uses the legacy fallback admin actor inside moderation actions;
 - runtime уже живет на Postgres-first path, но production env layout (`DATABASE_URL`, `DIRECT_URL`, SMTP, public URL) еще не доведен до финального deploy shape;
 - hosted deploy пока блокируется как минимум отсутствием production SMTP setup и публичного `APP_BASE_URL`; кроме того, локальная reachability Supabase может зависеть от среды выполнения;
 - нет production deployment path для размещенного сайта;
 - нет рабочего Telegram-бота для участников.
+- часть экранов уже переписана на язык атлета, но remaining copy pass и backend-выравнивание под новый UX еще впереди.
 
 ---
 
@@ -74,6 +101,7 @@ Current limitation:
 - Tie-break в рейтинге: лучший результат, затем второй, затем третий, затем число подтвержденных зачетных результатов, затем shared place.
 - Для текущего dev/demo flow дата старта в форме результата вводится в рамках `текущего сезона`.
 - Файл `PROJECT_STATUS.md` является основной межчатовой памятью проекта.
+- Для публичной карточки спортсмена имя и полная история результатов контролируются самим спортсменом через настройки профиля.
 
 ---
 
@@ -88,11 +116,19 @@ Data / backend:
 - primary persistence: `PostgreSQL`
 - runtime DB access: `DATABASE_URL + DATABASE_URL_POSTGRES + PrismaPg adapter`
 - migrations / schema truth: canonical `web/prisma/schema.prisma` with `postgresql` provider
+- protocol import bridge: `normalized JSON -> request JSON -> CLI importer -> Event/EventProtocolRow`
 
 Current key files:
 - PRD: [docs/PRD.md](/Users/satunkin/Codex_projects/rating/docs/PRD.md)
 - Implementation plan: [docs/IMPLEMENTATION_PLAN.md](/Users/satunkin/Codex_projects/rating/docs/IMPLEMENTATION_PLAN.md)
+- Main routes: [web/src/app/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/page.tsx), [web/src/app/cabinet/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/page.tsx), [web/src/app/leaderboard/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/leaderboard/page.tsx), [web/src/app/events/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/events/page.tsx), [web/src/app/rules/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/rules/page.tsx)
+- Admin detail routes: [web/src/app/cabinet/athletes/[athleteId]/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/athletes/[athleteId]/page.tsx), [web/src/app/cabinet/events/[eventId]/edit/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/events/[eventId]/edit/page.tsx)
+- Athlete edit route: [web/src/app/results/[submissionId]/edit/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/results/[submissionId]/edit/page.tsx)
+- Shared UX blocks: [web/src/app/site-header.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/site-header.tsx), [web/src/app/site-footer.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/site-footer.tsx), [web/src/components/technical-note.tsx](/Users/satunkin/Codex_projects/rating/web/src/components/technical-note.tsx)
 - Main DB logic: [web/src/lib/db.ts](/Users/satunkin/Codex_projects/rating/web/src/lib/db.ts)
+- Protocol import agent: [agents/protocol-importer/AGENT.md](/Users/satunkin/Codex_projects/rating/agents/protocol-importer/AGENT.md)
+- Protocol import contracts: [agents/protocol-importer/contracts/normalized-event-protocol.schema.json](/Users/satunkin/Codex_projects/rating/agents/protocol-importer/contracts/normalized-event-protocol.schema.json), [agents/protocol-importer/contracts/protocol-import-request.schema.json](/Users/satunkin/Codex_projects/rating/agents/protocol-importer/contracts/protocol-import-request.schema.json)
+- Protocol import scripts: [web/scripts/import-event-protocol.mjs](/Users/satunkin/Codex_projects/rating/web/scripts/import-event-protocol.mjs), [web/scripts/lib/protocol-import.mjs](/Users/satunkin/Codex_projects/rating/web/scripts/lib/protocol-import.mjs)
 - DB bootstrap: [web/src/lib/db-bootstrap.ts](/Users/satunkin/Codex_projects/rating/web/src/lib/db-bootstrap.ts)
 - Scoring rules: [web/src/lib/scoring.ts](/Users/satunkin/Codex_projects/rating/web/src/lib/scoring.ts)
 - Demo seed: [web/scripts/seed-demo.mjs](/Users/satunkin/Codex_projects/rating/web/scripts/seed-demo.mjs)
@@ -101,9 +137,14 @@ Key routes implemented:
 - `/`
 - `/register`
 - `/cabinet`
+- `/cabinet/athletes/[athleteId]`
+- `/cabinet/events/[eventId]/edit`
 - `/results/new`
+- `/results/[submissionId]/edit`
 - `/admin/login`
 - `/admin/submissions`
+- `/events`
+- `/events/[eventId]`
 - `/leaderboard`
 - `/rules`
 - `/athletes/[athleteId]`
@@ -117,12 +158,17 @@ Implemented product slices:
 - git initialization and GitHub remote setup;
 - PRD and implementation docs;
 - public homepage;
+- athlete-facing homepage with leaderboard preview, quick rules, and action-oriented navigation;
 - athlete registration foundation;
 - athlete login by email and password;
 - athlete login by email magic link;
 - athlete cabinet foundation;
+- role-based cabinet with separate admin/athlete information architecture;
 - result submission flow;
+- athlete result edit / resubmission flow;
+- athlete public-profile settings (`publicDisplayName`, `showPublicResults`);
 - admin login with env-based credentials and dev fallback;
+- admin login with DB-backed `ADMIN` users created from the cabinet;
 - manual moderation queue;
 - approval/rejection flow;
 - moderation helpers for protocol-aware manual review;
@@ -132,11 +178,24 @@ Implemented product slices:
 - ranking recalculation;
 - ranking tie-break logic with shared-place handling;
 - public leaderboard;
+- public events index and public event card with registered participants;
+- footer-level legal navigation with placeholder legal pages;
 - public athlete page;
+- admin event management;
+- admin athlete management;
+- admin-side user creation for athletes and admins;
 - demo data generation;
 - duplicate submission protection for exact repeated results;
 - Next.js 16-safe magic link verification flow through route handler.
 - minimal event reuse and event location capture in admin moderation.
+- reusable highlighted technical-note pattern for mixed product/dev copy.
+- protocol-import subagent with organizer-specific skills for `runc.run` and `grom.place`;
+- normalized protocol and import-request contracts for future organizers;
+- CLI protocol import path with `dry-run` validation and DB write mode for `EventProtocolRow`;
+- full `runc.run` protocol fixture assembled from 9 HTML pages for `The Garden Ring Relay Race` 15 km;
+- `grom.place` / `RaceResult` XLSX/PDF source links resolved and normalized sprint protocol assembled from the XLSX export.
+- admin event create/update flow now calls a known-protocol importer after saving `sourceUrl`, so supported organizers populate `EventProtocolRow` automatically.
+- admin event create/update flow now calls a live organizer parser layer; для `runc.run` парсятся все страницы выдачи, для `RaceResult` тянется config + XLSX export.
 
 Implemented developer validation:
 - `npm run lint` passes after recent working cycles;
@@ -152,7 +211,8 @@ Implemented developer validation:
 Still not done from the original project intent:
 - production-hardening of participant auth (`SMTP`, email verification polish, password reset, optional Telegram link);
 - hosted deployment path for the website;
-- event/protocol import flow;
+- no UI for protocol import inside admin cabinet yet;
+- first-class protocol rows editing/import UI for `EventProtocolRow`;
 - semi-automatic or automatic result validation;
 - management UI for seasons, score rules, event categories;
 - appeals/dispute flow;
@@ -160,13 +220,19 @@ Still not done from the original project intent:
 - working Telegram bot for participants;
 - public filters beyond current basic leaderboard filters;
 - protection against duplicates and moderation edge cases.
+- final legal copy for user agreement and personal-data policy.
 
 Current technical debt:
 - Postgres runtime уже основной, но env-конвенция еще transitional: часть команд умеет fallback на `DATABASE_URL_POSTGRES`, а production-shaped `DATABASE_URL` / `DIRECT_URL` еще не закреплены как единственная схема;
 - Prisma CLI path зависит от reachability `DIRECT_URL`; для Supabase direct host в некоторых локальных средах может понадобиться `session pooler :5432` вместо IPv6-only direct host;
-- participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth все еще env-based и без RBAC/2FA;
+- participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth still lacks proper RBAC / audit attribution / 2FA;
 - deploy-ready path частично упирается в среду: even with real Supabase envs local smoke checks могут падать, если текущий runtime не достукивается до хоста БД;
-- some UI texts still reflect foundation wording and need polishing during product pass.
+- organizer import layer пока ручной и file-based: новые организаторы нужно добавлять отдельными skills и fixture/request шаблонами;
+- importer пока не различает финишеров и статусные строки на уровне отдельного enum: `DNF` / `DSQ` / `DQ` сохраняются как raw status fields в normalized artifacts и частично приходят в importer как строки без парсимого времени;
+- organizer-level resolver уже есть для `runc.run` и `RaceResult`, но:
+  - `RaceResult` пока опирается на XLSX link из `InfoText` config-а;
+  - итоговый matching imported protocol rows к athlete submissions ещё не автоматизирован;
+- часть UI-текстов уже адаптирована под новую структуру, но remaining copy pass и deeper backend-normalization still remain.
 
 ---
 
@@ -217,12 +283,13 @@ P0 — mandatory before launch:
 1. define and test hosted deployment path for the website on the now-active PostgreSQL runtime;
 2. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
 3. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
-4. continue extending manual moderation toward protocol-aware helpers and later protocol import;
+4. continue extending manual moderation toward protocol-aware helpers and connect the new protocol-import foundation to real admin workflows;
 5. continue closing remaining ranking correctness gaps beyond exact duplicates and tie-break;
 6. run end-to-end launch validation on hosted environment.
+7. after the current UX pass, align backend statuses and remaining copy with the updated athlete-facing screen structure.
 
 P1 — important after P0, before broader growth:
-1. add semi-automatic protocol validation helpers;
+1. укрепить live parser layer для `runc.run` и `RaceResult` на большем числе реальных стартов и добавить новых организаторов;
 2. add notifications around moderation decisions;
 3. align remaining ranking engine behavior with fixed tie-break and rules model;
 4. expand public filters and management UI for score rules / event categories.
@@ -237,16 +304,18 @@ P3 — after launch foundation:
 3. add richer public experience and secondary product polish.
 
 Current best next coding step:
-- keep improving the P0 web flow without waiting for SMTP:
-  - continue moderation-side helpers around protocol/manual review;
-  - verify ranking behavior on more edge cases;
-  - then return to hosted deploy validation once `APP_BASE_URL` and SMTP are ready.
+- довести новый management layer до operational completeness:
+  - перевести moderation review actor с legacy admin fallback на реального admin session user;
+  - связать уже загруженные `EventProtocolRow` с moderation / matching flow;
+  - добавить UI-обратную связь в кабинете о результате автоимпорта протокола и количестве загруженных строк;
+  - затем вернуться к hosted deploy validation once `APP_BASE_URL` and SMTP are ready.
 
 ---
 
 ## 9. Decision Log
 
 - `2026-05-12`: PRD converted into implementation-ready docs package.
+- `2026-05-18`: `/cabinet` fixed as the single role-based entrypoint; public athlete visibility moved under athlete-controlled profile settings; event cards became first-class public pages.
 - `2026-05-12`: local git initialized and GitHub remote connected.
 - `2026-05-12`: Next.js foundation created.
 - `2026-05-12`: Prisma introduced as intended data layer.
@@ -258,6 +327,7 @@ Current best next coding step:
 - `2026-05-13`: public rating methodology page added and linked from main navigation.
 - `2026-05-13`: score breakdown UI added to leaderboard, cabinet, and athlete pages.
 - `2026-05-13`: signed cookie sessions, logout flow, and env-driven SQLite runtime config added.
+- `2026-05-15`: athlete-facing UX pass completed for homepage, navigation, rules, leaderboard, and legal/footer structure.
 - `2026-05-13`: baseline Prisma migration added; runtime SQL table bootstrap removed in favor of migration/state checks.
 - `2026-05-13`: PostgreSQL preparation workflow added with generated schema and baseline SQL artifacts.
 - `2026-05-13`: launch checklist reprioritized around hosted web MVP, production DB, auth, admin flow, and Telegram after core launch blockers.
@@ -269,6 +339,10 @@ Current best next coding step:
 - `2026-05-13`: official `@prisma/adapter-pg`, generated postgres client, and runtime smoke-check script added; current blocker is reachable PostgreSQL server, not code compilation.
 - `2026-05-13`: canonical Prisma schema, runtime client path, and Supabase validation flow switched to PostgreSQL-first operation.
 - `2026-05-13`: demo seed changed from global destructive reset to idempotent Postgres-safe upsert behavior for remote environments.
+- `2026-05-18`: protocol import moved from a vague backlog item to a concrete project layer: a dedicated `protocol-importer` subagent, per-organizer skills, JSON contracts, and a dry-run/apply CLI path for `EventProtocolRow` were added.
+- `2026-05-18`: real organizer data landed in the project: RaceResult XLSX/PDF links were resolved for `grom.place`, and the full 9-page `runc.run` protocol was assembled into normalized import fixtures.
+- `2026-05-18`: both prepared protocols were written to PostgreSQL, and admin event save now auto-imports supported protocol URLs into `EventProtocolRow`.
+- `2026-05-18`: exact-fixture matching was replaced with live organizer parsers for `runc.run` and `RaceResult`, plus a URL-based import CLI for direct validation.
 - `2026-05-13`: exact duplicate result submissions are blocked both at athlete submit time and at admin approve time.
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.
 - `2026-05-13`: admin moderation now reuses existing event entities by event fingerprint instead of blindly creating a new Event on every approve.

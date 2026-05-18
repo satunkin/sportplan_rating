@@ -250,6 +250,20 @@ export default async function AdminSubmissionsPage({
                           name="eventLocation"
                           placeholder="Локация старта, например Москва"
                         />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <input
+                            className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
+                            defaultValue={submission.placementOverall ?? ""}
+                            name="placementOverall"
+                            placeholder="Место в абсолюте"
+                          />
+                          <input
+                            className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
+                            defaultValue={submission.placementInAgeGroup ?? ""}
+                            name="placementInAgeGroup"
+                            placeholder="Место в группе"
+                          />
+                        </div>
                         <textarea
                           className="min-h-24 rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
                           name="notes"

@@ -2,16 +2,17 @@ import Link from "next/link";
 
 import { LeaderboardFilterForm } from "@/app/leaderboard/filter-form";
 import { ScoreBreakdown } from "@/components/score-breakdown";
+import { TechnicalNote } from "@/components/technical-note";
 import { getLeaderboardFilterOptions, listLeaderboard } from "@/lib/db";
 import { isCountedTowardTopThree } from "@/lib/ranking";
 
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ discipline?: string; ageGroup?: string }>;
+  searchParams: Promise<{ discipline?: string; ageGroup?: string; gender?: string }>;
 }) {
-  const { discipline, ageGroup } = await searchParams;
-  const entries = await listLeaderboard({ discipline, ageGroup });
+  const { discipline, ageGroup, gender } = await searchParams;
+  const entries = await listLeaderboard({ discipline, ageGroup, gender });
   const filterOptions = await getLeaderboardFilterOptions();
   const totalAthletes = entries.length;
   const totalPoints = entries.reduce((sum, entry) => sum + entry.totalPoints, 0);
@@ -26,15 +27,15 @@ export default async function LeaderboardPage({
         <div className="flex flex-col gap-3 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-              Public leaderboard
+              Рейтинг сезона
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-accent-strong">
-              Сезонный рейтинг Cyclon
+              Таблица участников и очков
             </h1>
           </div>
           <div className="max-w-md text-sm leading-6 text-muted">
-            Сейчас рейтинг считается по подтвержденным результатам и сумме трех
-            лучших стартов спортсмена.{" "}
+            Здесь видно текущее место, сумму очков и лучшие старты каждого
+            участника.{" "}
             <Link
               className="font-semibold text-accent underline-offset-4 hover:underline"
               href="/rules"
@@ -47,6 +48,7 @@ export default async function LeaderboardPage({
         <LeaderboardFilterForm
           ageGroups={filterOptions.ageGroups}
           disciplines={filterOptions.disciplines}
+          genders={filterOptions.genders}
         />
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -58,7 +60,7 @@ export default async function LeaderboardPage({
               {totalAthletes}
             </p>
             <p className="mt-2 text-sm leading-6 text-muted">
-              спортсмена с подтвержденными стартами
+              спортсмена с уже подтвержденными результатами
             </p>
           </article>
           <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-5">
@@ -69,7 +71,7 @@ export default async function LeaderboardPage({
               {totalCountedResults}
             </p>
             <p className="mt-2 text-sm leading-6 text-muted">
-              всего подтвержденных результатов в таблице
+              результатов уже участвуют в расчете рейтинга
             </p>
           </article>
           <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-5">
@@ -80,9 +82,17 @@ export default async function LeaderboardPage({
               {totalPoints}
             </p>
             <p className="mt-2 text-sm leading-6 text-muted">
-              общий объем рейтинговых очков в таблице
+              текущая сумма очков по всей таблице
             </p>
           </article>
+        </div>
+
+        <div className="mt-6">
+          <TechnicalNote title="Техническая заметка о расчете">
+            В карточках лучших стартов ниже сохранен детальный модуль
+            `ScoreBreakdown`: он нужен разработке и модерации, чтобы видеть
+            `basePoints`, `lagPercent` и попадание результата в топ-3 зачета.
+          </TechnicalNote>
         </div>
 
         {entries.length === 0 ? (
@@ -113,7 +123,8 @@ export default async function LeaderboardPage({
                         className="text-base font-semibold text-accent-strong underline-offset-4 hover:underline"
                         href={`/athletes/${entry.athlete.id}`}
                       >
-                        {entry.athlete.firstName} {entry.athlete.lastName}
+                        {entry.athlete.publicDisplayName?.trim() ||
+                          `${entry.athlete.firstName} ${entry.athlete.lastName}`.trim()}
                       </Link>
                       <p className="mt-1 text-sm text-muted">
                         {entry.athlete.seasonAgeGroup ?? "Группа не указана"}

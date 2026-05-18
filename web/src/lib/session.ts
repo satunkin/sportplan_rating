@@ -21,7 +21,7 @@ type SessionPayload =
     }
   | {
       role: "admin";
-      sub: "admin";
+      sub: string;
     };
 
 function encodeBase64Url(value: string) {
@@ -52,10 +52,10 @@ export function createAthleteSessionCookie(userId: string) {
   };
 }
 
-export function createAdminSessionCookie() {
+export function createAdminSessionCookie(userId = "admin") {
   return {
     name: ADMIN_SESSION_COOKIE,
-    value: createSessionToken({ role: "admin", sub: "admin" }),
+    value: createSessionToken({ role: "admin", sub: userId }),
     options: baseCookieOptions,
   };
 }
@@ -93,7 +93,11 @@ function parseSessionToken(token: string | undefined): SessionPayload | null {
       return parsed;
     }
 
-    if (parsed.role === "admin" && parsed.sub === "admin") {
+    if (
+      parsed.role === "admin" &&
+      typeof parsed.sub === "string" &&
+      parsed.sub.length > 0
+    ) {
       return parsed;
     }
 
@@ -115,9 +119,9 @@ export async function getAthleteUserSession() {
   return payload?.role === "athlete" ? payload.sub : null;
 }
 
-export async function setAdminSession() {
+export async function setAdminSession(userId = "admin") {
   const store = await cookies();
-  const cookie = createAdminSessionCookie();
+  const cookie = createAdminSessionCookie(userId);
   store.set(cookie.name, cookie.value, cookie.options);
 }
 
@@ -125,6 +129,12 @@ export async function hasAdminSession() {
   const store = await cookies();
   const payload = parseSessionToken(store.get(ADMIN_SESSION_COOKIE)?.value);
   return payload?.role === "admin";
+}
+
+export async function getAdminUserSession() {
+  const store = await cookies();
+  const payload = parseSessionToken(store.get(ADMIN_SESSION_COOKIE)?.value);
+  return payload?.role === "admin" ? payload.sub : null;
 }
 
 export async function clearAthleteUserSession() {

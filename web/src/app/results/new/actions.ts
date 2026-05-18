@@ -33,6 +33,8 @@ export async function submitResult(
     ageGroupClaimed: String(formData.get("ageGroupClaimed") ?? ""),
     finishTime: String(formData.get("finishTime") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
+    placementOverall: String(formData.get("placementOverall") ?? ""),
+    placementInAgeGroup: String(formData.get("placementInAgeGroup") ?? ""),
     comment: String(formData.get("comment") ?? ""),
   });
 

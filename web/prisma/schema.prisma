@@ -74,6 +74,8 @@ model Athlete {
   firstName        String
   lastName         String
   middleName       String?
+  publicDisplayName String?
+  showPublicResults Boolean           @default(false)
   birthDate        DateTime
   gender           Gender
   city             String?
@@ -164,6 +166,8 @@ model ResultSubmission {
   finishTimeRaw     String
   finishTimeSeconds Int
   protocolUrl       String?
+  placementOverall  Int?
+  placementInAgeGroup Int?
   bibNumber         String?
   comment           String?
   status            SubmissionStatus @default(PENDING_MANUAL_REVIEW)

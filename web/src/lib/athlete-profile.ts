@@ -14,6 +14,8 @@ export type AthleteProfile = AthleteProfileInput & {
   seasonYear: number;
   seasonAge: number;
   seasonAgeGroup: string;
+  publicDisplayName: string;
+  showPublicResults: boolean;
 };
 
 export type ValidationResult =
@@ -128,6 +130,8 @@ export function validateAthleteProfile(
       seasonYear,
       seasonAge,
       seasonAgeGroup: getSeasonAgeGroup(gender, seasonAge),
+      publicDisplayName: `${firstName} ${lastName}`.trim(),
+      showPublicResults: false,
     },
   };
 }

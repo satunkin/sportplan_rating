@@ -12,6 +12,10 @@ export async function approveSubmission(formData: FormData) {
   const categoryKey = String(formData.get("categoryKey") ?? "");
   const fifthPlaceTime = String(formData.get("fifthPlaceTime") ?? "");
   const eventLocation = String(formData.get("eventLocation") ?? "");
+  const placementOverall = String(formData.get("placementOverall") ?? "");
+  const placementInAgeGroup = String(
+    formData.get("placementInAgeGroup") ?? "",
+  );
   const confirmNoPublicProtocol =
     String(formData.get("confirmNoPublicProtocol") ?? "") === "on";
   const confirmMergedAgeGroups =
@@ -24,6 +28,8 @@ export async function approveSubmission(formData: FormData) {
       categoryKey,
       fifthPlaceTime,
       eventLocation,
+      placementOverall,
+      placementInAgeGroup,
       moderationFlags: {
         confirmNoPublicProtocol,
         confirmMergedAgeGroups,

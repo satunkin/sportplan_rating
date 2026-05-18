@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { verifyAdminLogin } from "@/lib/admin-auth";
+import { authenticateAdminUser, ensureAdminUser } from "@/lib/db";
 import { setAdminSession } from "@/lib/session";
 
 export type AdminLoginState = {
@@ -19,12 +20,23 @@ export async function loginAdmin(
     passphrase: String(formData.get("passphrase") ?? ""),
   });
 
-  if (!result.success) {
+  if (result.success) {
+    const adminUser = await ensureAdminUser();
+    await setAdminSession(adminUser.id);
+    redirect("/cabinet");
+  }
+
+  const dbAdmin = await authenticateAdminUser(
+    String(formData.get("email") ?? ""),
+    String(formData.get("password") ?? ""),
+  );
+
+  if (!dbAdmin) {
     return {
       errors: [result.error],
     };
   }
 
-  await setAdminSession();
-  redirect("/admin/submissions");
+  await setAdminSession(dbAdmin.id);
+  redirect("/cabinet");
 }

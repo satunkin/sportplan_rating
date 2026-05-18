@@ -15,6 +15,8 @@ export type ResultSubmissionInput = {
   ageGroupClaimed: string;
   finishTime: string;
   protocolUrl: string;
+  placementOverall: string;
+  placementInAgeGroup: string;
   comment: string;
 };
 
@@ -43,6 +45,10 @@ function isValidUrl(value: string) {
 
 function isValidTime(value: string) {
   return /^(\d{1,2}:)?\d{1,2}:\d{2}$/.test(value);
+}
+
+function isValidPlacement(value: string) {
+  return /^\d+$/.test(value) && Number(value) > 0;
 }
 
 function normalizeSeasonDate(value: string) {
@@ -83,6 +89,8 @@ export function validateResultSubmission(
   const ageGroupClaimed = normalizeSpace(input.ageGroupClaimed);
   const finishTime = input.finishTime.trim();
   const protocolUrl = input.protocolUrl.trim();
+  const placementOverall = input.placementOverall.trim();
+  const placementInAgeGroup = input.placementInAgeGroup.trim();
   const comment = normalizeSpace(input.comment);
 
   if (!eventName) {
@@ -109,8 +117,16 @@ export function validateResultSubmission(
     errors.push("Время результата должно быть в формате мм:сс или чч:мм:сс.");
   }
 
-  if (!isValidUrl(protocolUrl)) {
-    errors.push("Укажите корректную ссылку на официальный протокол.");
+  if (protocolUrl && !isValidUrl(protocolUrl)) {
+    errors.push("Если ссылка на протокол указана, она должна быть корректной.");
+  }
+
+  if (placementOverall && !isValidPlacement(placementOverall)) {
+    errors.push("Место в абсолюте должно быть положительным числом.");
+  }
+
+  if (placementInAgeGroup && !isValidPlacement(placementInAgeGroup)) {
+    errors.push("Место в возрастной группе должно быть положительным числом.");
   }
 
   if (errors.length > 0) {
@@ -127,6 +143,8 @@ export function validateResultSubmission(
       ageGroupClaimed,
       finishTime,
       protocolUrl,
+      placementOverall,
+      placementInAgeGroup,
       comment,
     },
   };
