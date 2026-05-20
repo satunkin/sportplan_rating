@@ -57,6 +57,7 @@ Current product state:
 - production env для `DATABASE_URL` / `DIRECT_URL` уже заведены на реальные Supabase строки;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
 - на текущем Supabase-проекте включен RLS для основных таблиц `public`, чтобы закрыть публичный доступ, на который ругался Security Advisor.
+- подготовлен отдельный операционный runbook `docs/DEPLOY_RUNBOOK.md` для server migration и hosted deploy: env checklist, Prisma path, stop conditions, rollback notes и post-deploy validation.
 - добавлен отдельный проектный субагент `agents/protocol-importer` с organizer-specific skills для импорта протоколов;
 - зафиксирован единый контракт данных для нормализованного протокола и request-файла импорта;
 - добавлен CLI-импортёр `npm run db:import:protocol`, который умеет прогонять `dry-run` и записывать строки протокола в `Event` + `EventProtocolRow`;
@@ -211,7 +212,7 @@ Implemented developer validation:
 
 Still not done from the original project intent:
 - production-hardening of participant auth (`SMTP`, email verification polish, password reset, optional Telegram link);
-- hosted deployment path for the website;
+- hosted deployment path for the website still needs a first real execution pass by the documented runbook;
 - no UI for protocol import inside admin cabinet yet;
 - first-class protocol rows editing/import UI for `EventProtocolRow`;
 - semi-automatic or automatic result validation;
@@ -282,7 +283,7 @@ When updating this file:
 Launch checklist for MVP, aligned with PRD and current launch scope:
 
 P0 — mandatory before launch:
-1. define and test hosted deployment path for the website on the now-active PostgreSQL runtime;
+1. execute and verify the first real server migration + hosted deploy pass on the now-active PostgreSQL runtime using `docs/DEPLOY_RUNBOOK.md`;
 2. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
 3. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
 4. continue extending manual moderation toward protocol-aware helpers and connect the new protocol-import foundation to real admin workflows;
@@ -346,6 +347,7 @@ Current best next coding step:
 - `2026-05-18`: both prepared protocols were written to PostgreSQL, and admin event save now auto-imports supported protocol URLs into `EventProtocolRow`.
 - `2026-05-18`: exact-fixture matching was replaced with live organizer parsers for `runc.run` and `RaceResult`, plus a URL-based import CLI for direct validation.
 - `2026-05-20`: Supabase Security Advisor issue `rls_disabled_in_public` closed by enabling RLS on the public application tables through a dedicated PostgreSQL migration.
+- `2026-05-20`: server migration and deploy procedure documented in `docs/DEPLOY_RUNBOOK.md`; canonical rollout order is `db:deploy` first, hosted app deploy second, then `/api/health` and manual smoke checks.
 - `2026-05-13`: exact duplicate result submissions are blocked both at athlete submit time and at admin approve time.
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.
 - `2026-05-13`: admin moderation now reuses existing event entities by event fingerprint instead of blindly creating a new Event on every approve.
