@@ -56,6 +56,7 @@ Current product state:
 - `deploy:check` теперь проверяет не только env-поля, но и доступность PostgreSQL, наличие ключевых Prisma-таблиц и SMTP handshake;
 - production env для `DATABASE_URL` / `DIRECT_URL` уже заведены на реальные Supabase строки;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
+- на текущем Supabase-проекте включен RLS для основных таблиц `public`, чтобы закрыть публичный доступ, на который ругался Security Advisor.
 - добавлен отдельный проектный субагент `agents/protocol-importer` с organizer-specific skills для импорта протоколов;
 - зафиксирован единый контракт данных для нормализованного протокола и request-файла импорта;
 - добавлен CLI-импортёр `npm run db:import:protocol`, который умеет прогонять `dry-run` и записывать строки протокола в `Event` + `EventProtocolRow`;
@@ -227,6 +228,7 @@ Current technical debt:
 - Prisma CLI path зависит от reachability `DIRECT_URL`; для Supabase direct host в некоторых локальных средах может понадобиться `session pooler :5432` вместо IPv6-only direct host;
 - participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth still lacks proper RBAC / audit attribution / 2FA;
 - deploy-ready path частично упирается в среду: even with real Supabase envs local smoke checks могут падать, если текущий runtime не достукивается до хоста БД;
+- RLS на таблицах уже включен, но policies под будущие прямые client-side сценарии пока не проектировались: текущая модель предполагает server-side доступ через Prisma;
 - organizer import layer пока ручной и file-based: новые организаторы нужно добавлять отдельными skills и fixture/request шаблонами;
 - importer пока не различает финишеров и статусные строки на уровне отдельного enum: `DNF` / `DSQ` / `DQ` сохраняются как raw status fields в normalized artifacts и частично приходят в importer как строки без парсимого времени;
 - organizer-level resolver уже есть для `runc.run` и `RaceResult`, но:
@@ -343,6 +345,7 @@ Current best next coding step:
 - `2026-05-18`: real organizer data landed in the project: RaceResult XLSX/PDF links were resolved for `grom.place`, and the full 9-page `runc.run` protocol was assembled into normalized import fixtures.
 - `2026-05-18`: both prepared protocols were written to PostgreSQL, and admin event save now auto-imports supported protocol URLs into `EventProtocolRow`.
 - `2026-05-18`: exact-fixture matching was replaced with live organizer parsers for `runc.run` and `RaceResult`, plus a URL-based import CLI for direct validation.
+- `2026-05-20`: Supabase Security Advisor issue `rls_disabled_in_public` closed by enabling RLS on the public application tables through a dedicated PostgreSQL migration.
 - `2026-05-13`: exact duplicate result submissions are blocked both at athlete submit time and at admin approve time.
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.
 - `2026-05-13`: admin moderation now reuses existing event entities by event fingerprint instead of blindly creating a new Event on every approve.
