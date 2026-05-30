@@ -28,7 +28,11 @@ export type ResultSubmission = ResultSubmissionInput & {
 
 export type ResultSubmissionValidation =
   | { success: true; data: ResultSubmissionInput }
-  | { success: false; errors: string[] };
+  | { success: false; errors: string[]; fieldErrors: Partial<Record<keyof ResultSubmissionInput, string>> };
+
+export type ResultSubmissionFieldErrors = Partial<
+  Record<keyof ResultSubmissionInput, string>
+>;
 
 function normalizeSpace(value: string) {
   return value.trim().replace(/\s+/g, " ");
@@ -53,25 +57,44 @@ function isValidPlacement(value: string) {
 
 function normalizeSeasonDate(value: string) {
   const normalized = value.trim();
-  const match = normalized.match(/^(\d{1,2})\.(\d{1,2})$/);
+  let day: number;
+  let month: number;
+  let year: number;
 
-  if (!match) {
-    return null;
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (isoMatch) {
+    [, year, month, day] = isoMatch.map(Number);
+  } else {
+    const fullDateMatch = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+
+    if (fullDateMatch) {
+      [, day, month, year] = fullDateMatch.map(Number);
+    } else {
+      const shortDateMatch = normalized.match(/^(\d{1,2})\.(\d{1,2})$/);
+
+      if (!shortDateMatch) {
+        return null;
+      }
+
+      [, day, month] = shortDateMatch.map(Number);
+      year = new Date().getFullYear();
+    }
   }
-
-  const [, dayRaw, monthRaw] = match;
-  const day = Number(dayRaw);
-  const month = Number(monthRaw);
 
   if (day < 1 || day > 31 || month < 1 || month > 12) {
     return null;
   }
 
-  const seasonYear = new Date().getFullYear();
-  const isoDate = `${seasonYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const isoDate = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const date = new Date(`${isoDate}T00:00:00`);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
     return null;
   }
 
@@ -82,6 +105,7 @@ export function validateResultSubmission(
   input: ResultSubmissionInput,
 ): ResultSubmissionValidation {
   const errors: string[] = [];
+  const fieldErrors: ResultSubmissionFieldErrors = {};
 
   const eventName = normalizeSpace(input.eventName);
   const eventDate = normalizeSeasonDate(input.eventDate);
@@ -94,43 +118,61 @@ export function validateResultSubmission(
   const comment = normalizeSpace(input.comment);
 
   if (!eventName) {
-    errors.push("Укажите название соревнования.");
+    const message = "Укажите название соревнования.";
+    errors.push(message);
+    fieldErrors.eventName = message;
   }
 
   if (!eventDate) {
-    errors.push("Укажите корректную дату старта в формате дд.мм.");
+    const message = "Укажите корректную дату старта с годом.";
+    errors.push(message);
+    fieldErrors.eventDate = message;
   }
 
   if (!DISCIPLINE_OPTIONS.some((option) => option.value === input.discipline)) {
-    errors.push("Выберите дисциплину.");
+    const message = "Выберите дисциплину.";
+    errors.push(message);
+    fieldErrors.discipline = message;
   }
 
   if (!distanceLabel) {
-    errors.push("Укажите дистанцию.");
+    const message = "Укажите дистанцию.";
+    errors.push(message);
+    fieldErrors.distanceLabel = message;
   }
 
   if (!ageGroupClaimed) {
-    errors.push("Укажите возрастную группу из протокола.");
+    const message = "Укажите возрастную группу из протокола.";
+    errors.push(message);
+    fieldErrors.ageGroupClaimed = message;
   }
 
   if (!isValidTime(finishTime)) {
-    errors.push("Время результата должно быть в формате мм:сс или чч:мм:сс.");
+    const message = "Время результата должно быть в формате мм:сс или чч:мм:сс.";
+    errors.push(message);
+    fieldErrors.finishTime = message;
   }
 
   if (protocolUrl && !isValidUrl(protocolUrl)) {
-    errors.push("Если ссылка на протокол указана, она должна быть корректной.");
+    const message = "Если ссылка на протокол указана, она должна быть корректной.";
+    errors.push(message);
+    fieldErrors.protocolUrl = message;
   }
 
   if (placementOverall && !isValidPlacement(placementOverall)) {
-    errors.push("Место в абсолюте должно быть положительным числом.");
+    const message = "Место в абсолюте должно быть положительным числом.";
+    errors.push(message);
+    fieldErrors.placementOverall = message;
   }
 
   if (placementInAgeGroup && !isValidPlacement(placementInAgeGroup)) {
-    errors.push("Место в возрастной группе должно быть положительным числом.");
+    const message = "Место в возрастной группе должно быть положительным числом.";
+    errors.push(message);
+    fieldErrors.placementInAgeGroup = message;
   }
 
   if (errors.length > 0) {
-    return { success: false, errors };
+    return { success: false, errors, fieldErrors };
   }
 
   return {

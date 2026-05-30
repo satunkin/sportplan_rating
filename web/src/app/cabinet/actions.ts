@@ -28,6 +28,7 @@ import {
   clearAdminSession,
   clearAthleteUserSession,
   getAthleteUserSession,
+  hasAdminSession,
 } from "@/lib/session";
 
 function revalidateAppShell() {
@@ -35,6 +36,12 @@ function revalidateAppShell() {
   revalidatePath("/cabinet");
   revalidatePath("/leaderboard");
   revalidatePath("/events");
+}
+
+async function requireAdminSession() {
+  if (!(await hasAdminSession())) {
+    redirect("/admin/login");
+  }
 }
 
 export async function logoutAthlete() {
@@ -125,6 +132,8 @@ export async function removeAthleteSubmission(formData: FormData) {
 }
 
 export async function createCompetitionCard(formData: FormData) {
+  await requireAdminSession();
+
   const discipline = String(formData.get("discipline") ?? "") as Discipline;
   await createAdminManagedEvent({
     name: String(formData.get("name") ?? ""),
@@ -141,6 +150,8 @@ export async function createCompetitionCard(formData: FormData) {
 }
 
 export async function saveCompetitionCard(formData: FormData) {
+  await requireAdminSession();
+
   const eventId = String(formData.get("eventId") ?? "");
   const discipline = String(formData.get("discipline") ?? "") as Discipline;
 
@@ -159,12 +170,16 @@ export async function saveCompetitionCard(formData: FormData) {
 }
 
 export async function removeCompetitionCard(formData: FormData) {
+  await requireAdminSession();
+
   await deleteAdminManagedEvent(String(formData.get("eventId") ?? ""));
   revalidateAppShell();
   redirect("/cabinet");
 }
 
 export async function createAthleteUserByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const validation = validateAthleteProfile({
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
@@ -187,6 +202,8 @@ export async function createAthleteUserByAdmin(formData: FormData) {
 }
 
 export async function createAdminUserByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
@@ -196,6 +213,8 @@ export async function createAdminUserByAdmin(formData: FormData) {
 }
 
 export async function saveAthleteByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const athleteId = String(formData.get("athleteId") ?? "");
 
   await updateAthleteByAdmin(athleteId, {
@@ -213,6 +232,8 @@ export async function saveAthleteByAdmin(formData: FormData) {
 }
 
 export async function addAthleteSubmissionByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const athleteId = String(formData.get("athleteId") ?? "");
   const validation = validateResultSubmission({
     eventName: String(formData.get("eventName") ?? ""),
@@ -237,6 +258,8 @@ export async function addAthleteSubmissionByAdmin(formData: FormData) {
 }
 
 export async function saveAthleteSubmissionByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const athleteId = String(formData.get("athleteId") ?? "");
   const submissionId = String(formData.get("submissionId") ?? "");
   const validation = validateResultSubmission({
@@ -262,6 +285,8 @@ export async function saveAthleteSubmissionByAdmin(formData: FormData) {
 }
 
 export async function removeAthleteSubmissionByAdmin(formData: FormData) {
+  await requireAdminSession();
+
   const athleteId = String(formData.get("athleteId") ?? "");
   await deleteSubmissionByAdmin(String(formData.get("submissionId") ?? ""));
   revalidateAppShell();

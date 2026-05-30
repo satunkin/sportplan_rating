@@ -4,9 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { reviewSubmission, seedDemoScenario } from "@/lib/db";
-import { clearAdminSession } from "@/lib/session";
+import { clearAdminSession, hasAdminSession } from "@/lib/session";
+
+async function requireAdminSession() {
+  if (!(await hasAdminSession())) {
+    redirect("/admin/login");
+  }
+}
 
 export async function approveSubmission(formData: FormData) {
+  await requireAdminSession();
+
   const submissionId = String(formData.get("submissionId") ?? "");
   const notes = String(formData.get("notes") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
@@ -90,6 +98,8 @@ export async function approveSubmission(formData: FormData) {
 }
 
 export async function rejectSubmission(formData: FormData) {
+  await requireAdminSession();
+
   const submissionId = String(formData.get("submissionId") ?? "");
   const notes = String(formData.get("notes") ?? "");
 
@@ -100,6 +110,8 @@ export async function rejectSubmission(formData: FormData) {
 }
 
 export async function seedDemoData() {
+  await requireAdminSession();
+
   await seedDemoScenario();
   revalidatePath("/admin/submissions");
   revalidatePath("/cabinet");

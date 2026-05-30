@@ -252,6 +252,16 @@ async function ensureCurrentSeason() {
   });
 }
 
+async function findCurrentSeason() {
+  await ensureDatabaseReady();
+
+  return prisma.season.findUnique({
+    where: {
+      name: `${CURRENT_SEASON_YEAR} Season`,
+    },
+  });
+}
+
 async function ensureScoreRuleSeed(seasonId: string) {
   await ensureDatabaseReady();
 
@@ -1270,8 +1280,11 @@ export async function listLeaderboard(filters?: {
 }) {
   await ensureDatabaseReady();
 
-  const season = await ensureCurrentSeason();
-  await ensureScoreRuleSeed(season.id);
+  const season = await findCurrentSeason();
+
+  if (!season) {
+    return [];
+  }
 
   const entries = await prisma.rankingEntry.findMany({
     where: {
@@ -1324,7 +1337,33 @@ export function getCategoryOptionsForDiscipline(discipline: Discipline) {
 }
 
 export async function getLeaderboardFilterOptions() {
-  const entries = await listLeaderboard();
+  await ensureDatabaseReady();
+
+  const season = await findCurrentSeason();
+
+  if (!season) {
+    return {
+      ageGroups: [],
+      disciplines: Object.values(Discipline),
+      genders: [
+        { value: "male", label: "Мужчины" },
+        { value: "female", label: "Женщины" },
+      ],
+    };
+  }
+
+  const entries = await prisma.rankingEntry.findMany({
+    where: {
+      seasonId: season.id,
+    },
+    select: {
+      athlete: {
+        select: {
+          seasonAgeGroup: true,
+        },
+      },
+    },
+  });
 
   const ageGroups = Array.from(
     new Set(
@@ -1347,7 +1386,11 @@ export async function getLeaderboardFilterOptions() {
 export async function getPublicAthleteProfile(athleteId: string) {
   await ensureDatabaseReady();
 
-  const season = await ensureCurrentSeason();
+  const season = await findCurrentSeason();
+
+  if (!season) {
+    return null;
+  }
 
   const rankingEntry = await prisma.rankingEntry.findFirst({
     where: {

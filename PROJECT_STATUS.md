@@ -17,7 +17,7 @@
 
 ## 1. Current State
 
-Updated: `2026-05-18`
+Updated: `2026-05-30`
 Project phase: `MVP information architecture + protocol-import foundation`
 Primary app path: `/Users/satunkin/Codex_projects/rating/web`
 Git remote: `https://github.com/satunkin/sportplan_rating.git`
@@ -29,6 +29,7 @@ Current product state:
 - есть новый публичный раздел `/events` со списком соревнований и страницами `/events/[eventId]`;
 - администратор может создавать, редактировать и удалять карточки соревнований, а также редактировать карточку спортсмена и его результаты из кабинета;
 - спортсмен может менять имя для публичной карточки, включать/выключать публикацию всех результатов, редактировать прошлые результаты с повторной отправкой на подтверждение и удалить свой профиль;
+- форма подачи результата теперь выбирает соревнование из существующих `Event`, умеет переключиться на ручной ввод, подставляет дату/дисциплину/дистанцию/протокол, использует календарную дату с годом и подсвечивает ошибки без сброса введенных данных;
 - в модель результата добавлены `placementOverall` и `placementInAgeGroup`, чтобы карточки соревнований и спортсменов показывали не только время и очки, но и места;
 - в модель спортсмена добавлены `publicDisplayName` и `showPublicResults` для контроля публичного профиля;
 - админский login теперь пропускает не только env-admin, но и пользователей с ролью `ADMIN`, созданных из кабинета;
@@ -40,6 +41,7 @@ Current product state:
 - есть demo seed для наполнения тестовыми участниками и рейтингом;
 - есть scoring foundation: категории, базовые очки, расчет lag percent, начисление очков, top-3 ranking logic;
 - есть signed cookie sessions для athlete/admin и logout flow;
+- админские server actions в кабинете и moderation queue дополнительно проверяют admin session на уровне самого действия;
 - есть athlete auth baseline через регистрацию в БД, primary `email magic link` login и временный password fallback;
 - athlete magic link verification переведен с page-render path на route handler, чтобы cookie-сессия ставилась корректно в Next.js 16;
 - есть strengthened admin auth baseline через `ADMIN_EMAIL + ADMIN_PASSWORD_HASH` с временным fallback на `ADMIN_ACCESS_KEY`;
@@ -54,9 +56,10 @@ Current product state:
 - ranking recalculation теперь соответствует зафиксированному tie-break: лучший результат, затем второй, затем третий, затем число подтвержденных стартов, затем shared place;
 - есть hosted deployment prep: `/api/health`, `deploy:check` и Vercel-oriented env checklist;
 - `deploy:check` теперь проверяет не только env-поля, но и доступность PostgreSQL, наличие ключевых Prisma-таблиц и SMTP handshake;
+- `deploy:check` теперь должен считаться источником правды и по RLS drift: если на реальном Supabase выключен RLS на одной из app-таблиц `public`, релиз блокируется до фикса;
 - production env для `DATABASE_URL` / `DIRECT_URL` уже заведены на реальные Supabase строки;
 - есть подтвержденный Supabase demo snapshot, который можно безопасно пересидировать без глобального удаления данных.
-- на текущем Supabase-проекте включен RLS для основных таблиц `public`, чтобы закрыть публичный доступ, на который ругался Security Advisor.
+- в репозитории есть Supabase hardening path: RLS для app-таблиц `public`, follow-up миграция для revoke legacy default grants и pre-deploy проверка на RLS drift;
 - подготовлен отдельный операционный runbook `docs/DEPLOY_RUNBOOK.md` для server migration и hosted deploy: env checklist, Prisma path, stop conditions, rollback notes и post-deploy validation.
 - добавлен отдельный проектный субагент `agents/protocol-importer` с organizer-specific skills для импорта протоколов;
 - зафиксирован единый контракт данных для нормализованного протокола и request-файла импорта;
@@ -70,6 +73,7 @@ Current product state:
   - `The Garden Ring Relay Race` 15 km (`8493` protocol rows);
 - create/update карточки соревнования теперь умеют auto-import protocol rows при сохранении поддержанной ссылки `runc.run` или `RaceResult`;
 - parser layer больше не завязан на две точные ссылки: появился organizer-level live import для `runc.run` и `RaceResult` (`my.raceresult.com` / related hosts), который скачивает источник по URL, нормализует строки и пишет их в `EventProtocolRow`.
+- публичное чтение leaderboard / athlete profile больше не запускает seed/upsert score rules на read path; seed остается в demo/moderation write flows.
 
 Current limitation:
 - это еще не production-ready MVP;
@@ -101,9 +105,10 @@ Current limitation:
 - Случаи с группой менее `5` финишеров, `merged age groups` и отсутствием публичного протокола не автозасчитываются и идут в ручную модерацию.
 - `DNS`, `DNF`, `DSQ` не участвуют в рейтинге.
 - Tie-break в рейтинге: лучший результат, затем второй, затем третий, затем число подтвержденных зачетных результатов, затем shared place.
-- Для текущего dev/demo flow дата старта в форме результата вводится в рамках `текущего сезона`.
+- В форме подачи результата дата старта выбирается календарем и хранится с годом; старый `дд.мм` формат остается совместимым для legacy/edit flows.
 - Файл `PROJECT_STATUS.md` является основной межчатовой памятью проекта.
 - Для публичной карточки спортсмена имя и полная история результатов контролируются самим спортсменом через настройки профиля.
+- Следующий крупный UX/design этап не должен начинаться с переписывания проекта с нуля: сохраняем backend/core-логику, БД, auth, рейтинг, заявки и модерацию, а заново проектируем пользовательский путь, структуру страниц и визуальную систему поверх текущего ядра.
 
 ---
 
@@ -167,6 +172,7 @@ Implemented product slices:
 - athlete cabinet foundation;
 - role-based cabinet with separate admin/athlete information architecture;
 - result submission flow;
+- result submission form with existing-event selection, auto-filled event metadata, local field validation, and field-level error highlighting;
 - athlete result edit / resubmission flow;
 - athlete public-profile settings (`publicDisplayName`, `showPublicResults`);
 - admin login with env-based credentials and dev fallback;
@@ -198,13 +204,15 @@ Implemented product slices:
 - `grom.place` / `RaceResult` XLSX/PDF source links resolved and normalized sprint protocol assembled from the XLSX export.
 - admin event create/update flow now calls a known-protocol importer after saving `sourceUrl`, so supported organizers populate `EventProtocolRow` automatically.
 - admin event create/update flow now calls a live organizer parser layer; для `runc.run` парсятся все страницы выдачи, для `RaceResult` тянется config + XLSX export.
+- admin-facing server actions now require an active admin session before mutating events, athletes, submissions, moderation decisions, or demo data.
+- public leaderboard reads no longer run score-rule seed/upsert work on every request.
 
 Implemented developer validation:
 - `npm run lint` passes after recent working cycles;
-- `npm run build` passes after recent working cycles;
+- `npm run build` passes after the 2026-05-30 audit fixes;
 - `npm run db:smoke:postgres` validates the runtime PostgreSQL path, but in some local/sandbox environments may fail if the current runtime cannot reach Supabase over the network;
 - `npm run db:seed:demo` is rerunnable and produces a valid demo ranking snapshot on Supabase.
-- `npm run deploy:check` теперь задуман как реальный pre-deploy smoke check для env + DB + SMTP readiness.
+- `npm run deploy:check` теперь задуман как реальный pre-deploy smoke check для env + DB + SMTP readiness, включая проверку RLS на публичных app-таблицах.
 
 ---
 
@@ -227,9 +235,9 @@ Still not done from the original project intent:
 Current technical debt:
 - Postgres runtime уже основной, но env-конвенция еще transitional: часть команд умеет fallback на `DATABASE_URL_POSTGRES`, а production-shaped `DATABASE_URL` / `DIRECT_URL` еще не закреплены как единственная схема;
 - Prisma CLI path зависит от reachability `DIRECT_URL`; для Supabase direct host в некоторых локальных средах может понадобиться `session pooler :5432` вместо IPv6-only direct host;
-- participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth still lacks proper RBAC / audit attribution / 2FA;
+- participant auth уже перешел на magic link baseline, но в production ему все еще нужен реальный SMTP, а admin auth still lacks proper RBAC / role-choice flow / audit attribution / 2FA;
 - deploy-ready path частично упирается в среду: even with real Supabase envs local smoke checks могут падать, если текущий runtime не достукивается до хоста БД;
-- RLS на таблицах уже включен, но policies под будущие прямые client-side сценарии пока не проектировались: текущая модель предполагает server-side доступ через Prisma;
+- RLS/policies под будущие прямые client-side сценарии пока не проектировались: текущая модель предполагает server-side доступ через Prisma, а не публичный Supabase Data API;
 - organizer import layer пока ручной и file-based: новые организаторы нужно добавлять отдельными skills и fixture/request шаблонами;
 - importer пока не различает финишеров и статусные строки на уровне отдельного enum: `DNF` / `DSQ` / `DQ` сохраняются как raw status fields в normalized artifacts и частично приходят в importer как строки без парсимого времени;
 - organizer-level resolver уже есть для `runc.run` и `RaceResult`, но:
@@ -284,12 +292,15 @@ Launch checklist for MVP, aligned with PRD and current launch scope:
 
 P0 — mandatory before launch:
 1. execute and verify the first real server migration + hosted deploy pass on the now-active PostgreSQL runtime using `docs/DEPLOY_RUNBOOK.md`;
-2. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
-3. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
-4. continue extending manual moderation toward protocol-aware helpers and connect the new protocol-import foundation to real admin workflows;
-5. continue closing remaining ranking correctness gaps beyond exact duplicates and tie-break;
-6. run end-to-end launch validation on hosted environment.
-7. after the current UX pass, align backend statuses and remaining copy with the updated athlete-facing screen structure.
+2. отдельно догнать live Supabase до repository migrations и подтвердить, что warning `rls_disabled_in_public` исчез после `db:deploy` / SQL hotfix;
+3. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
+4. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
+5. continue extending manual moderation toward protocol-aware helpers and connect the new protocol-import foundation to real admin workflows;
+6. continue closing remaining ranking correctness gaps beyond exact duplicates and tie-break;
+7. run end-to-end launch validation on hosted environment.
+8. after the current UX pass, align backend statuses and remaining copy with the updated athlete-facing screen structure.
+9. add real role-selection flow for emails that should act as both athlete and admin.
+10. before continuing UI implementation, make a new UX-structure document from Nikolay's next-chat requirements and design references, then use it as the blueprint for the redesign.
 
 P1 — important after P0, before broader growth:
 1. укрепить live parser layer для `runc.run` и `RaceResult` на большем числе реальных стартов и добавить новых организаторов;
@@ -307,11 +318,7 @@ P3 — after launch foundation:
 3. add richer public experience and secondary product polish.
 
 Current best next coding step:
-- довести новый management layer до operational completeness:
-  - перевести moderation review actor с legacy admin fallback на реального admin session user;
-  - связать уже загруженные `EventProtocolRow` с moderation / matching flow;
-  - добавить UI-обратную связь в кабинете о результате автоимпорта протокола и количестве загруженных строк;
-  - затем вернуться к hosted deploy validation once `APP_BASE_URL` and SMTP are ready.
+- in the next chat, first gather Nikolay's desired user journey and design references, then produce a UX-structure document for the redesign while preserving the current backend/core logic.
 
 ---
 
@@ -336,6 +343,8 @@ Current best next coding step:
 - `2026-05-13`: launch checklist reprioritized around hosted web MVP, production DB, auth, admin flow, and Telegram after core launch blockers.
 - `2026-05-13`: admin auth strengthened from single access key toward `ADMIN_EMAIL + ADMIN_PASSWORD_HASH`, with local/dev fallback and hash generation script.
 - `2026-05-13`: athlete auth moved from session-only behavior to DB-backed email+password login baseline with a dedicated `/login` route.
+- `2026-05-30`: audit pass hardened admin server actions, moved leaderboard public reads off write/seed paths, and improved result-submission UX validation.
+- `2026-05-30`: redesign direction chosen: keep the current backend/core implementation and redesign UX structure, page hierarchy, and visual system in a follow-up chat.
 - `2026-05-13`: athlete login shifted to email magic link as the primary web auth path, with DB-backed one-time tokens and dev preview when SMTP is absent.
 - `2026-05-13`: hosted deployment prep added with `/api/health`, `deploy:check`, and explicit Vercel/PostgreSQL/SMTP requirements.
 - `2026-05-13`: runtime DB wiring isolated behind `DATABASE_URL` and a single adapter-selection layer; next DB cutover blocker is canonical Prisma provider and migrations.
@@ -346,7 +355,8 @@ Current best next coding step:
 - `2026-05-18`: real organizer data landed in the project: RaceResult XLSX/PDF links were resolved for `grom.place`, and the full 9-page `runc.run` protocol was assembled into normalized import fixtures.
 - `2026-05-18`: both prepared protocols were written to PostgreSQL, and admin event save now auto-imports supported protocol URLs into `EventProtocolRow`.
 - `2026-05-18`: exact-fixture matching was replaced with live organizer parsers for `runc.run` and `RaceResult`, plus a URL-based import CLI for direct validation.
-- `2026-05-20`: Supabase Security Advisor issue `rls_disabled_in_public` closed by enabling RLS on the public application tables through a dedicated PostgreSQL migration.
+- `2026-05-20`: базовая Prisma-миграция для включения RLS на public app-таблицах была добавлена в репозиторий; фактическое состояние удалённого Supabase нужно подтверждать отдельной проверкой против live DB.
+- `2026-05-27`: Supabase hardening path reinforced with a follow-up migration for `public` default privileges and with an RLS check inside `deploy:check`, because remote Supabase state can still drift away from repository migrations.
 - `2026-05-20`: server migration and deploy procedure documented in `docs/DEPLOY_RUNBOOK.md`; canonical rollout order is `db:deploy` first, hosted app deploy second, then `/api/health` and manual smoke checks.
 - `2026-05-13`: exact duplicate result submissions are blocked both at athlete submit time and at admin approve time.
 - `2026-05-13`: athlete magic-link verification moved from server-component render to route handler because Next.js 16 forbids cookie mutation during page render.

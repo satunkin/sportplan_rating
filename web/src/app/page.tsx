@@ -3,20 +3,191 @@ import Link from "next/link";
 import { TechnicalNote } from "@/components/technical-note";
 import { listLeaderboard } from "@/lib/db";
 
-export default async function Home({
-  searchParams,
+type LeaderboardEntry = Awaited<ReturnType<typeof listLeaderboard>>[number];
+
+function HomeLeaderboardColumn({
+  leaders,
 }: {
-  searchParams: Promise<{ gender?: string }>;
+  leaders: LeaderboardEntry[];
 }) {
-  const resolvedSearchParams = await searchParams;
-  const gender = resolvedSearchParams.gender ?? "male";
-  const entries = await listLeaderboard({ gender });
-  const leaders = entries.slice(0, 5);
+  if (leaders.length === 0) {
+    return (
+      <div className="rounded-[1.5rem] border border-dashed border-border bg-white/65 px-6 py-8 text-sm leading-7 text-muted">
+        Рейтинг пока пуст. После подтверждения первых результатов здесь
+        появятся лидеры сезона.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      {leaders.map((entry) => (
+        <Link
+          key={entry.id}
+          className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:bg-white"
+          href={`/athletes/${entry.athlete.id}`}
+        >
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_180px] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-sm uppercase tracking-[0.16em] text-muted">
+                Место {entry.rank}
+              </p>
+              <p className="mt-2 text-xl font-semibold text-accent-strong">
+                {entry.athlete.publicDisplayName?.trim() ||
+                  `${entry.athlete.firstName} ${entry.athlete.lastName}`.trim()}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                {entry.athlete.city ?? "Город не указан"} •{" "}
+                {entry.athlete.seasonAgeGroup ?? "Возрастная группа уточняется"}
+              </p>
+            </div>
+
+            <div className="min-w-0 rounded-[1.25rem] bg-surface px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                Лучшие старты
+              </p>
+              <div className="mt-3 grid gap-2">
+                {entry.athlete.verifiedResults.slice(0, 3).map((result, index) => (
+                  <div
+                    key={result.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="min-w-0 truncate text-muted">
+                      {index + 1}. {result.submission.distanceLabel}
+                    </span>
+                    <span className="shrink-0 font-semibold text-accent-strong">
+                      {result.submission.finishTimeRaw}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[1.25rem] bg-surface px-4 py-3 text-right">
+              <p className="text-2xl font-semibold text-accent-strong">
+                {entry.totalPoints}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {entry.scoredResultsCount} стартов в зачете
+              </p>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export default async function Home() {
+  const [maleEntries, femaleEntries] = await Promise.all([
+    listLeaderboard({ gender: "male" }),
+    listLeaderboard({ gender: "female" }),
+  ]);
+  const maleLeaders = maleEntries.slice(0, 5);
+  const femaleLeaders = femaleEntries.slice(0, 5);
 
   return (
     <main className="page-shell flex min-h-screen flex-col">
       <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-10 sm:px-10 lg:px-12">
-        <div className="mb-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="grid gap-6">
+          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
+            <div className="flex flex-col gap-3 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                  Рейтинг сезона
+                </p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-accent-strong">
+                  Абсолютный рейтинг
+                </h2>
+              </div>
+              <p className="max-w-md text-sm leading-6 text-muted">
+                На главной сразу видны оба зачета, чтобы не переключаться между
+                мужской и женской таблицей.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <section className="rounded-[1.75rem] border border-border bg-white/45 px-5 py-5">
+                <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+                      Мужчины
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      Топ-5 текущего сезона
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <HomeLeaderboardColumn leaders={maleLeaders} />
+                </div>
+              </section>
+
+              <section className="rounded-[1.75rem] border border-border bg-white/45 px-5 py-5">
+                <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+                      Женщины
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      Топ-5 текущего сезона
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <HomeLeaderboardColumn leaders={femaleLeaders} />
+                </div>
+              </section>
+            </div>
+
+            <div className="mt-6">
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
+                href="/leaderboard"
+              >
+                Открыть полный рейтинг
+              </Link>
+            </div>
+          </article>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <TechnicalNote>
+              На текущем этапе front уже показывает реальный пользовательский
+              маршрут, но рядом сохранены технические пояснения про модули,
+              статусы и MVP-ограничения. Это сделано специально, чтобы удобнее
+              было дорабатывать backend и не потерять связь между UX и
+              внутренней логикой системы.
+            </TechnicalNote>
+
+            <article className="rounded-[2rem] border border-border bg-surface-strong px-7 py-7">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                Быстрые действия
+              </p>
+              <div className="mt-5 grid gap-3">
+                <Link
+                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                  href="/register"
+                >
+                  Зарегистрироваться в рейтинге
+                </Link>
+                <Link
+                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                  href="/login"
+                >
+                  Войти по email
+                </Link>
+                <Link
+                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
+                  href="/results/new"
+                >
+                  Подать новый результат
+                </Link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
             <p className="mb-3 inline-flex rounded-full border border-border bg-white/70 px-4 py-2 text-sm font-semibold tracking-[0.08em] text-accent">
               SportPlan rating
@@ -127,152 +298,6 @@ export default async function Home({
               его статус и начисленные очки.
             </p>
           </article>
-        </section>
-
-        <section className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
-            <div className="flex flex-col gap-3 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                  Рейтинг сезона
-                </p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-accent-strong">
-                  Абсолютный рейтинг
-                </h2>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  className={`inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    gender !== "female"
-                      ? "bg-accent text-white"
-                      : "border border-border bg-white/80 text-accent-strong"
-                  }`}
-                  href="/?gender=male"
-                >
-                  Мужчины
-                </Link>
-                <Link
-                  className={`inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    gender === "female"
-                      ? "bg-accent text-white"
-                      : "border border-border bg-white/80 text-accent-strong"
-                  }`}
-                  href="/?gender=female"
-                >
-                  Женщины
-                </Link>
-              </div>
-            </div>
-
-            {leaders.length === 0 ? (
-              <div className="mt-6 rounded-[1.5rem] border border-dashed border-border bg-white/65 px-6 py-8 text-sm leading-7 text-muted">
-                Рейтинг пока пуст. После подтверждения первых результатов здесь
-                появятся лидеры сезона.
-              </div>
-            ) : (
-              <div className="mt-6 grid gap-4">
-                {leaders.map((entry) => (
-                  <Link
-                    key={entry.id}
-                    className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:bg-white"
-                    href={`/athletes/${entry.athlete.id}`}
-                  >
-                    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)_180px] lg:items-center">
-                      <div className="min-w-0">
-                        <p className="text-sm uppercase tracking-[0.16em] text-muted">
-                          Место {entry.rank}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-accent-strong">
-                          {entry.athlete.publicDisplayName?.trim() ||
-                            `${entry.athlete.firstName} ${entry.athlete.lastName}`.trim()}
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-muted">
-                          {entry.athlete.city ?? "Город не указан"} •{" "}
-                          {entry.athlete.seasonAgeGroup ??
-                            "Возрастная группа уточняется"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-[1.25rem] bg-surface px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                          Лучшие старты
-                        </p>
-                        <div className="mt-3 grid gap-2">
-                          {entry.athlete.verifiedResults.slice(0, 3).map((result, index) => (
-                            <div
-                              key={result.id}
-                              className="flex items-center justify-between gap-3 text-sm"
-                            >
-                              <span className="min-w-0 truncate text-muted">
-                                {index + 1}. {result.submission.distanceLabel}
-                              </span>
-                              <span className="shrink-0 font-semibold text-accent-strong">
-                                {result.submission.finishTimeRaw}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-[1.25rem] bg-surface px-4 py-3 text-right">
-                        <p className="text-2xl font-semibold text-accent-strong">
-                          {entry.totalPoints}
-                        </p>
-                        <p className="mt-1 text-sm text-muted">
-                          {entry.scoredResultsCount} стартов в зачете
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-6">
-              <Link
-                className="inline-flex text-sm font-medium text-accent underline-offset-4 hover:underline"
-                href="/leaderboard"
-              >
-                Открыть полный рейтинг
-              </Link>
-            </div>
-          </article>
-
-          <div className="grid gap-6">
-            <TechnicalNote>
-              На текущем этапе front уже показывает реальный пользовательский
-              маршрут, но рядом сохранены технические пояснения про модули,
-              статусы и MVP-ограничения. Это сделано специально, чтобы удобнее
-              было дорабатывать backend и не потерять связь между UX и
-              внутренней логикой системы.
-            </TechnicalNote>
-
-            <article className="rounded-[2rem] border border-border bg-surface-strong px-7 py-7">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                Быстрые действия
-              </p>
-              <div className="mt-5 grid gap-3">
-                <Link
-                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
-                  href="/register"
-                >
-                  Зарегистрироваться в рейтинге
-                </Link>
-                <Link
-                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
-                  href="/login"
-                >
-                  Войти по email
-                </Link>
-                <Link
-                  className="rounded-[1.25rem] border border-border bg-white/75 px-4 py-4 text-sm font-semibold text-accent-strong transition hover:bg-white"
-                  href="/results/new"
-                >
-                  Подать новый результат
-                </Link>
-              </div>
-            </article>
-          </div>
         </section>
       </section>
     </main>

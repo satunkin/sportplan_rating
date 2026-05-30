@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import {
   type DisciplineValue,
+  type ResultSubmissionFieldErrors,
   validateResultSubmission,
 } from "@/lib/result-submission";
 import { createResultSubmissionForUser } from "@/lib/db";
@@ -11,6 +12,7 @@ import { getAthleteUserSession } from "@/lib/session";
 
 export type ResultSubmissionState = {
   errors: string[];
+  fieldErrors: ResultSubmissionFieldErrors;
 };
 
 export async function submitResult(
@@ -22,6 +24,7 @@ export async function submitResult(
   if (!userId) {
     return {
       errors: ["Сначала нужно зарегистрировать профиль спортсмена."],
+      fieldErrors: {},
     };
   }
 
@@ -39,7 +42,7 @@ export async function submitResult(
   });
 
   if (!result.success) {
-    return { errors: result.errors };
+    return { errors: result.errors, fieldErrors: result.fieldErrors };
   }
 
   try {
@@ -53,6 +56,7 @@ export async function submitResult(
         errors: [
           "Похожий результат уже отправлен в очередь или уже подтвержден. Откройте кабинет и проверьте текущие заявки, чтобы не задублировать старт.",
         ],
+        fieldErrors: {},
       };
     }
 

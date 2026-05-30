@@ -43,20 +43,10 @@ export async function SiteHeader() {
             Правила рейтинга
           </Link>
           <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-semibold text-accent-strong transition hover:bg-white"
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-strong"
             href={adminSession || athleteUserId ? "/cabinet" : "/login"}
           >
-            {adminSession
-              ? "Админ-кабинет"
-              : athleteUserId
-                ? "Личный кабинет"
-                : "Войти"}
-          </Link>
-          <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-strong"
-            href="/register"
-          >
-            Стать участником
+            Личный кабинет
           </Link>
         </nav>
       </div>

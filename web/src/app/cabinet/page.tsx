@@ -487,7 +487,7 @@ export default async function CabinetPage({
             Новый или измененный результат снова попадет на подтверждение администратору. Так сохраняется прозрачная история расчета рейтинга.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-slate-100" href="/results/new">
+            <Link className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-strong px-6 py-3 text-base font-semibold text-white transition hover:bg-[#0f2d43]" href="/results/new">
               Добавить результат
             </Link>
             <Link className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10" href={`/athletes/${profile.id}`}>

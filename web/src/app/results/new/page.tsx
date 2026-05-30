@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { ResultSubmissionForm } from "@/app/results/new/form";
 import { TechnicalNote } from "@/components/technical-note";
-import { getAthleteProfileByUserId } from "@/lib/db";
+import { getAthleteProfileByUserId, listEvents } from "@/lib/db";
 import { getAthleteUserSession } from "@/lib/session";
 
 export default async function NewResultPage() {
@@ -13,7 +13,10 @@ export default async function NewResultPage() {
     redirect("/register");
   }
 
-  const profile = await getAthleteProfileByUserId(userId);
+  const [profile, events] = await Promise.all([
+    getAthleteProfileByUserId(userId),
+    listEvents(),
+  ]);
 
   if (!profile) {
     redirect("/register");
@@ -62,7 +65,17 @@ export default async function NewResultPage() {
             указать места, если они уже известны.
           </p>
           <div className="mt-8">
-            <ResultSubmissionForm suggestedAgeGroup={profile.seasonAgeGroup} />
+            <ResultSubmissionForm
+              eventOptions={events.map((event) => ({
+                id: event.id,
+                name: event.name,
+                eventDate: event.eventDate.toISOString().slice(0, 10),
+                discipline: event.discipline,
+                distanceLabel: event.distanceLabel,
+                protocolUrl: event.sourceUrl ?? "",
+              }))}
+              suggestedAgeGroup={profile.seasonAgeGroup}
+            />
           </div>
         </article>
       </section>

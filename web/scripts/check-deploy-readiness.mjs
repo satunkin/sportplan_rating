@@ -32,6 +32,21 @@ const REQUIRED_TABLES = [
   "VerifiedResult",
   "RankingEntry",
 ];
+const REQUIRED_RLS_TABLES = [
+  "User",
+  "Athlete",
+  "Season",
+  "EventCategory",
+  "Event",
+  "EventProtocolRow",
+  "ResultSubmission",
+  "VerifiedResult",
+  "ScoreRule",
+  "RankingEntry",
+  "ManualReview",
+  "AuditLog",
+  "MagicLinkToken",
+];
 
 if (!databaseUrl) {
   blockers.push("DATABASE_URL is missing.");
@@ -76,7 +91,7 @@ if (!directUrl) {
 }
 
 async function verifyDatabaseConnectivity() {
-  if (!runtimeDatabaseUrl || blockers.length > 0) {
+  if (!runtimeDatabaseUrl) {
     return;
   }
 
@@ -103,6 +118,33 @@ async function verifyDatabaseConnectivity() {
       blockers.push(
         `Database connection works, but Prisma tables are missing: ${missingTables.join(", ")}. Run "npm run db:deploy" before deployment.`,
       );
+      return;
+    }
+
+    const tablesWithoutRls = [];
+
+    for (const tableName of REQUIRED_RLS_TABLES) {
+      const result = await prisma.$queryRawUnsafe(`
+        SELECT c.relrowsecurity AS "rowSecurityEnabled"
+        FROM pg_class AS c
+        INNER JOIN pg_namespace AS n
+          ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND c.relname = '${tableName}'
+        LIMIT 1
+      `);
+      const rowSecurityEnabled = result[0]?.rowSecurityEnabled;
+
+      if (rowSecurityEnabled !== true) {
+        tablesWithoutRls.push(tableName);
+      }
+    }
+
+    if (tablesWithoutRls.length > 0) {
+      blockers.push(
+        `RLS is disabled on public tables: ${tablesWithoutRls.join(", ")}. Run "npm run db:deploy" (or apply the matching Prisma migration in Supabase SQL Editor) before deployment.`,
+      );
     }
   } catch (error) {
     const message =
@@ -115,7 +157,7 @@ async function verifyDatabaseConnectivity() {
 }
 
 async function verifySmtpConnectivity() {
-  if (!isSmtpConfigured() || blockers.length > 0) {
+  if (!isSmtpConfigured()) {
     return;
   }
 

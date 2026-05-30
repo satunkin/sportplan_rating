@@ -270,6 +270,11 @@ npm run db:smoke:postgres
 - источником истины для дальнейшей работы считать код репозитория;
 - затем либо догонять БД через миграцию, либо документировать ручной drift и устранять его.
 
+Важно для текущего Supabase access model:
+- приложение сейчас ходит в БД через direct PostgreSQL connection + Prisma, а не через `supabase-js`, PostgREST или GraphQL;
+- поэтому RLS на `public`-таблицах обязателен, а `GRANT` ролям `anon` / `authenticated` / `service_role` нужно выдавать только под осознанный Data API use case;
+- hardening-миграция `20260527123000_supabase_public_schema_hardening` дополнительно ревокает legacy default privileges на будущие объекты `public`, чтобы новые таблицы не оказывались снаружи автоматически.
+
 ## 8. Rollback Notes
 
 Важно:
