@@ -6,11 +6,9 @@ import { useTransition } from "react";
 export function LeaderboardFilterForm({
   ageGroups,
   disciplines,
-  genders,
 }: {
   ageGroups: string[];
   disciplines: string[];
-  genders: { value: string; label: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -21,16 +19,12 @@ export function LeaderboardFilterForm({
     const params = new URLSearchParams(searchParams.toString());
     const ageGroup = String(formData.get("ageGroup") ?? "all");
     const discipline = String(formData.get("discipline") ?? "all");
-    const gender = String(formData.get("gender") ?? "all");
 
     if (ageGroup === "all") params.delete("ageGroup");
     else params.set("ageGroup", ageGroup);
 
     if (discipline === "all") params.delete("discipline");
     else params.set("discipline", discipline);
-
-    if (gender === "all") params.delete("gender");
-    else params.set("gender", gender);
 
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
@@ -40,12 +34,12 @@ export function LeaderboardFilterForm({
   return (
     <form
       action={onChange}
-      className="mt-6 grid gap-4 rounded-[1.5rem] border border-border bg-white/70 px-5 py-5 md:grid-cols-3"
+      className="grid gap-4 rounded-[1.5rem] border border-border bg-white/70 px-5 py-5 md:grid-cols-2"
     >
       <label className="text-sm font-medium text-foreground">
         Возрастная группа
         <select
-          className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
+          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
           defaultValue={searchParams.get("ageGroup") ?? "all"}
           name="ageGroup"
         >
@@ -61,7 +55,7 @@ export function LeaderboardFilterForm({
       <label className="text-sm font-medium text-foreground">
         Дисциплина
         <select
-          className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
+          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
           defaultValue={searchParams.get("discipline") ?? "all"}
           name="discipline"
         >
@@ -74,26 +68,10 @@ export function LeaderboardFilterForm({
         </select>
       </label>
 
-      <label className="text-sm font-medium text-foreground">
-        Пол
-        <select
-          className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-          defaultValue={searchParams.get("gender") ?? "all"}
-          name="gender"
-        >
-          <option value="all">Все</option>
-          {genders.map((gender) => (
-            <option key={gender.value} value={gender.value}>
-              {gender.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="md:col-span-3 flex items-center justify-between text-sm text-muted">
+      <div className="flex items-center justify-between text-sm text-muted md:col-span-2">
         <span>Фильтры применяются без перезагрузки страницы.</span>
         <button
-          className="inline-flex min-h-10 items-center justify-center rounded-full bg-accent px-5 py-2 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 py-2 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
           disabled={isPending}
           type="submit"
         >

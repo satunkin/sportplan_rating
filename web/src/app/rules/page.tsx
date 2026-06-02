@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { TechnicalNote } from "@/components/technical-note";
-
 const categoryGroups = [
   {
     title: "Бег",
@@ -76,16 +74,16 @@ export default function RulesPage() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
               href="/leaderboard"
             >
               Открыть рейтинг
             </Link>
             <Link
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-white/80 px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-white"
-              href="/results/new"
+              className="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 py-3 text-base font-semibold text-foreground transition hover:bg-surface-strong"
+              href="/participate"
             >
-              Подать результат
+              Как участвовать
             </Link>
           </div>
         </div>
@@ -238,14 +236,6 @@ export default function RulesPage() {
             </ol>
           </article>
         </section>
-
-        <TechnicalNote>
-          Ниже и на соседних страницах часть терминов пока остается технической:
-          `verified`, `basePoints`, формула MVP и логика manual review. Мы
-          сохраняем эти пояснения в интерфейсе специально, чтобы команда могла
-          быстрее синхронизировать UX с текущей backend-логикой, не теряя
-          прозрачности правил.
-        </TechnicalNote>
       </section>
     </main>
   );

@@ -65,8 +65,8 @@ export default async function AdminAthletePage({
               <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href={`/athletes/${athlete.id}`}>
                 Публичная карточка
               </Link>
-              <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/cabinet">
-                Назад в кабинет
+              <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/admin/athletes">
+                К списку участников
               </Link>
             </div>
           </div>

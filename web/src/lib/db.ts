@@ -956,6 +956,7 @@ async function recalculateSeasonRanking(seasonId: string) {
     string,
     {
       athleteId: string;
+      gender: Gender;
       bestScores: number[];
       verifiedResultsCount: number;
     }
@@ -964,6 +965,7 @@ async function recalculateSeasonRanking(seasonId: string) {
   for (const item of verified) {
     const bucket = grouped.get(item.athleteId) ?? {
       athleteId: item.athleteId,
+      gender: item.athlete.gender,
       bestScores: [],
       verifiedResultsCount: 0,
     };
@@ -980,6 +982,7 @@ async function recalculateSeasonRanking(seasonId: string) {
   const leaderboard = Array.from(grouped.values())
     .map((entry) => ({
       athleteId: entry.athleteId,
+      gender: entry.gender,
       bestScores: [
         entry.bestScores[0] ?? 0,
         entry.bestScores[1] ?? 0,
@@ -1006,42 +1009,45 @@ async function recalculateSeasonRanking(seasonId: string) {
     where: { seasonId },
   });
 
-  let previousEntry:
-    | {
-        totalPoints: number;
-        bestScores: number[];
-        scoredResultsCount: number;
-        rank: number;
-      }
-    | undefined;
+  for (const gender of [Gender.MALE, Gender.FEMALE]) {
+    const genderLeaderboard = leaderboard.filter((entry) => entry.gender === gender);
+    let previousEntry:
+      | {
+          totalPoints: number;
+          bestScores: number[];
+          scoredResultsCount: number;
+          rank: number;
+        }
+      | undefined;
 
-  for (const [index, entry] of leaderboard.entries()) {
-    const rank =
-      previousEntry &&
-      previousEntry.totalPoints === entry.totalPoints &&
-      previousEntry.bestScores.every(
-        (score, scoreIndex) => score === entry.bestScores[scoreIndex],
-      ) &&
-      previousEntry.scoredResultsCount === entry.scoredResultsCount
-        ? previousEntry.rank
-        : index + 1;
+    for (const [index, entry] of genderLeaderboard.entries()) {
+      const rank =
+        previousEntry &&
+        previousEntry.totalPoints === entry.totalPoints &&
+        previousEntry.bestScores.every(
+          (score, scoreIndex) => score === entry.bestScores[scoreIndex],
+        ) &&
+        previousEntry.scoredResultsCount === entry.scoredResultsCount
+          ? previousEntry.rank
+          : index + 1;
 
-    await prisma.rankingEntry.create({
-      data: {
-        athleteId: entry.athleteId,
-        seasonId,
+      await prisma.rankingEntry.create({
+        data: {
+          athleteId: entry.athleteId,
+          seasonId,
+          totalPoints: entry.totalPoints,
+          rank,
+          scoredResultsCount: entry.scoredResultsCount,
+        },
+      });
+
+      previousEntry = {
         totalPoints: entry.totalPoints,
-        rank,
+        bestScores: entry.bestScores,
         scoredResultsCount: entry.scoredResultsCount,
-      },
-    });
-
-    previousEntry = {
-      totalPoints: entry.totalPoints,
-      bestScores: entry.bestScores,
-      scoredResultsCount: entry.scoredResultsCount,
-      rank,
-    };
+        rank,
+      };
+    }
   }
 }
 
@@ -1273,6 +1279,98 @@ export async function reviewSubmission(
   return submission;
 }
 
+function compareRankingEntries(
+  left: {
+    totalPoints: number;
+    scoredResultsCount: number;
+    athleteId: string;
+    athlete: {
+      verifiedResults: { awardedPoints: number }[];
+    };
+  },
+  right: {
+    totalPoints: number;
+    scoredResultsCount: number;
+    athleteId: string;
+    athlete: {
+      verifiedResults: { awardedPoints: number }[];
+    };
+  },
+) {
+  if (right.totalPoints !== left.totalPoints) {
+    return right.totalPoints - left.totalPoints;
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const leftScore = left.athlete.verifiedResults[index]?.awardedPoints ?? 0;
+    const rightScore = right.athlete.verifiedResults[index]?.awardedPoints ?? 0;
+
+    if (rightScore !== leftScore) {
+      return rightScore - leftScore;
+    }
+  }
+
+  if (right.scoredResultsCount !== left.scoredResultsCount) {
+    return right.scoredResultsCount - left.scoredResultsCount;
+  }
+
+  return left.athleteId.localeCompare(right.athleteId);
+}
+
+function sameRankingScore(
+  left: {
+    totalPoints: number;
+    scoredResultsCount: number;
+    athlete: { verifiedResults: { awardedPoints: number }[] };
+  },
+  right: {
+    totalPoints: number;
+    scoredResultsCount: number;
+    athlete: { verifiedResults: { awardedPoints: number }[] };
+  },
+) {
+  return (
+    left.totalPoints === right.totalPoints &&
+    left.scoredResultsCount === right.scoredResultsCount &&
+    [0, 1, 2].every(
+      (index) =>
+        (left.athlete.verifiedResults[index]?.awardedPoints ?? 0) ===
+        (right.athlete.verifiedResults[index]?.awardedPoints ?? 0),
+    )
+  );
+}
+
+function applyDisplayRanks<
+  T extends {
+    rank: number;
+    totalPoints: number;
+    scoredResultsCount: number;
+    athleteId: string;
+    athlete: {
+      verifiedResults: { awardedPoints: number }[];
+    };
+  },
+>(entries: T[]) {
+  const sorted = [...entries].sort(compareRankingEntries);
+  let previousEntry: T | undefined;
+  let previousRank = 0;
+
+  return sorted.map((entry, index) => {
+    const rank =
+      previousEntry && sameRankingScore(previousEntry, entry)
+        ? previousRank
+        : index + 1;
+
+    previousEntry = entry;
+    previousRank = rank;
+
+    return {
+      ...entry,
+      rank,
+    };
+  });
+}
+
 export async function listLeaderboard(filters?: {
   discipline?: string;
   ageGroup?: string;
@@ -1309,7 +1407,22 @@ export async function listLeaderboard(filters?: {
     orderBy: { rank: "asc" },
   });
 
-  return entries.filter((entry) => {
+  const genderFilteredEntries = entries.filter((entry) => {
+    if (!filters?.gender || filters.gender === "all") {
+      return true;
+    }
+
+    return (
+      (filters.gender === "male" && entry.athlete.gender === Gender.MALE) ||
+      (filters.gender === "female" && entry.athlete.gender === Gender.FEMALE)
+    );
+  });
+  const rankedEntries =
+    filters?.gender && filters.gender !== "all"
+      ? applyDisplayRanks(genderFilteredEntries)
+      : genderFilteredEntries;
+
+  return rankedEntries.filter((entry) => {
     const matchesAgeGroup =
       !filters?.ageGroup ||
       filters.ageGroup === "all" ||
@@ -1322,13 +1435,7 @@ export async function listLeaderboard(filters?: {
         (result) => result.submission.discipline === filters.discipline,
       );
 
-    const matchesGender =
-      !filters?.gender ||
-      filters.gender === "all" ||
-      (filters.gender === "male" && entry.athlete.gender === Gender.MALE) ||
-      (filters.gender === "female" && entry.athlete.gender === Gender.FEMALE);
-
-    return matchesAgeGroup && matchesDiscipline && matchesGender;
+    return matchesAgeGroup && matchesDiscipline;
   });
 }
 
@@ -1808,6 +1915,7 @@ export async function listEvents() {
     include: {
       _count: {
         select: {
+          protocolRows: true,
           verifiedResults: true,
         },
       },
@@ -1820,6 +1928,79 @@ export async function listEvents() {
     ...event,
     isPast: event.eventDate < new Date(),
     participantsCount: event._count.verifiedResults,
+    protocolRowsCount: event._count.protocolRows,
+  }));
+}
+
+function getEventGroupKey(event: {
+  name: string;
+  eventDate: Date;
+  discipline: Discipline;
+  location?: string | null;
+}) {
+  return [
+    event.name.trim().toLowerCase(),
+    event.eventDate.toISOString(),
+    event.discipline,
+    event.location?.trim().toLowerCase() ?? "",
+  ].join("|");
+}
+
+export async function listPublicEventCards(filters?: { discipline?: string }) {
+  const events = await listEvents();
+  const groups = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      eventDate: Date;
+      discipline: Discipline;
+      location: string | null;
+      isPast: boolean;
+      distances: string[];
+      participantsCount: number;
+      protocolRowsCount: number;
+      hasProtocolUrl: boolean;
+    }
+  >();
+
+  for (const event of events) {
+    if (
+      filters?.discipline &&
+      filters.discipline !== "all" &&
+      event.discipline !== filters.discipline
+    ) {
+      continue;
+    }
+
+    const key = getEventGroupKey(event);
+    const group = groups.get(key);
+
+    if (!group) {
+      groups.set(key, {
+        id: event.id,
+        name: event.name,
+        eventDate: event.eventDate,
+        discipline: event.discipline,
+        location: event.location,
+        isPast: event.isPast,
+        distances: [event.distanceLabel],
+        participantsCount: event.participantsCount,
+        protocolRowsCount: event.protocolRowsCount,
+        hasProtocolUrl: Boolean(event.sourceUrl),
+      });
+      continue;
+    }
+
+    group.distances.push(event.distanceLabel);
+    group.participantsCount += event.participantsCount;
+    group.protocolRowsCount += event.protocolRowsCount;
+    group.hasProtocolUrl = group.hasProtocolUrl || Boolean(event.sourceUrl);
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    distances: Array.from(new Set(group.distances)).sort(),
   }));
 }
 
@@ -1830,6 +2011,11 @@ export async function getPublicEventCard(eventId: string) {
     where: { id: eventId },
     include: {
       category: true,
+      _count: {
+        select: {
+          protocolRows: true,
+        },
+      },
       verifiedResults: {
         include: {
           athlete: true,
@@ -1844,24 +2030,70 @@ export async function getPublicEventCard(eventId: string) {
     return null;
   }
 
-  const participants = [...event.verifiedResults].sort((left, right) => {
-    const leftPlace = left.submission.placementOverall ?? Number.MAX_SAFE_INTEGER;
-    const rightPlace = right.submission.placementOverall ?? Number.MAX_SAFE_INTEGER;
-
-    if (leftPlace !== rightPlace) {
-      return leftPlace - rightPlace;
-    }
-
-    return right.awardedPoints - left.awardedPoints;
+  const relatedEvents = await prisma.event.findMany({
+    where: {
+      name: event.name,
+      eventDate: event.eventDate,
+      discipline: event.discipline,
+      location: event.location,
+    },
+    include: {
+      category: true,
+      _count: {
+        select: {
+          protocolRows: true,
+        },
+      },
+      verifiedResults: {
+        include: {
+          athlete: true,
+          submission: true,
+          scoreRule: true,
+        },
+      },
+    },
+    orderBy: { distanceLabel: "asc" },
   });
+
+  const distances = relatedEvents.map((relatedEvent) => {
+    const participants = [...relatedEvent.verifiedResults].sort((left, right) => {
+      const leftPlace =
+        left.submission.placementOverall ?? Number.MAX_SAFE_INTEGER;
+      const rightPlace =
+        right.submission.placementOverall ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftPlace !== rightPlace) {
+        return leftPlace - rightPlace;
+      }
+
+      return right.awardedPoints - left.awardedPoints;
+    });
+
+    return {
+      id: relatedEvent.id,
+      distanceLabel: relatedEvent.distanceLabel,
+      category: relatedEvent.category,
+      sourceUrl: relatedEvent.sourceUrl,
+      protocolRowsCount: relatedEvent._count.protocolRows,
+      participants: participants.map((result) => ({
+        ...result,
+        athleteDisplayName: getAthleteDisplayName(result.athlete),
+      })),
+    };
+  });
+
+  const currentDistance =
+    distances.find((distance) => distance.id === event.id) ?? distances[0];
 
   return {
     ...event,
     isPast: event.eventDate < new Date(),
-    participants: participants.map((result) => ({
-      ...result,
-      athleteDisplayName: getAthleteDisplayName(result.athlete),
-    })),
+    protocolRowsCount: distances.reduce(
+      (sum, distance) => sum + distance.protocolRowsCount,
+      0,
+    ),
+    distances,
+    participants: currentDistance?.participants ?? [],
   };
 }
 

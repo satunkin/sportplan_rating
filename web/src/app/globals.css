@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f0e8;
-  --foreground: #1b2a33;
-  --surface: #fffaf2;
-  --surface-strong: #ecdfca;
-  --accent: #1f5f8b;
-  --accent-strong: #133a56;
-  --muted: #6d7f89;
-  --border: rgba(27, 42, 51, 0.12);
+  --background: #ffffff;
+  --foreground: #171a20;
+  --surface: #ffffff;
+  --surface-strong: #f4f4f4;
+  --accent: #3e6ae1;
+  --accent-strong: #2446a8;
+  --muted: #5c5e62;
+  --border: #d0d1d2;
 }
 
 @theme inline {
@@ -20,7 +20,7 @@
   --color-accent-strong: var(--accent-strong);
   --color-muted: var(--muted);
   --color-border: var(--border);
-  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-sans: "Inter", "Segoe UI", Arial, sans-serif;
   --font-mono: "SFMono-Regular", "Consolas", monospace;
 }
 
@@ -48,8 +48,22 @@ a {
 }
 
 .page-shell {
-  background:
-    radial-gradient(circle at top left, rgba(31, 95, 139, 0.16), transparent 28%),
-    radial-gradient(circle at top right, rgba(236, 223, 202, 0.8), transparent 34%),
-    linear-gradient(180deg, #f7f2e9 0%, #f2ece2 48%, #ece6dc 100%);
+  background: #ffffff;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border-radius: 6px;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
 }

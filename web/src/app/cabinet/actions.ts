@@ -33,6 +33,10 @@ import {
 
 function revalidateAppShell() {
   revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/admin/events");
+  revalidatePath("/admin/athletes");
+  revalidatePath("/admin/submissions");
   revalidatePath("/cabinet");
   revalidatePath("/leaderboard");
   revalidatePath("/events");
@@ -146,7 +150,7 @@ export async function createCompetitionCard(formData: FormData) {
   });
 
   revalidateAppShell();
-  redirect("/cabinet");
+  redirect("/admin/events");
 }
 
 export async function saveCompetitionCard(formData: FormData) {
@@ -166,7 +170,7 @@ export async function saveCompetitionCard(formData: FormData) {
   });
 
   revalidateAppShell();
-  redirect(`/events/${eventId}`);
+  redirect(`/admin/events/${eventId}/edit`);
 }
 
 export async function removeCompetitionCard(formData: FormData) {
@@ -174,7 +178,7 @@ export async function removeCompetitionCard(formData: FormData) {
 
   await deleteAdminManagedEvent(String(formData.get("eventId") ?? ""));
   revalidateAppShell();
-  redirect("/cabinet");
+  redirect("/admin/events");
 }
 
 export async function createAthleteUserByAdmin(formData: FormData) {
@@ -193,12 +197,12 @@ export async function createAthleteUserByAdmin(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   if (!validation.success || password.trim().length < 8) {
-    redirect("/cabinet?adminError=athlete_create_invalid");
+    redirect("/admin/athletes?adminError=athlete_create_invalid");
   }
 
   await createAthleteByAdmin(validation.data, password);
   revalidateAppShell();
-  redirect("/cabinet");
+  redirect("/admin/athletes");
 }
 
 export async function createAdminUserByAdmin(formData: FormData) {
@@ -209,7 +213,7 @@ export async function createAdminUserByAdmin(formData: FormData) {
 
   await createAdminAccount(email, password);
   revalidateAppShell();
-  redirect("/cabinet");
+  redirect("/admin");
 }
 
 export async function saveAthleteByAdmin(formData: FormData) {
@@ -228,7 +232,7 @@ export async function saveAthleteByAdmin(formData: FormData) {
   });
 
   revalidateAppShell();
-  redirect(`/cabinet/athletes/${athleteId}`);
+  redirect(`/admin/athletes/${athleteId}`);
 }
 
 export async function addAthleteSubmissionByAdmin(formData: FormData) {
@@ -249,12 +253,12 @@ export async function addAthleteSubmissionByAdmin(formData: FormData) {
   });
 
   if (!validation.success) {
-    redirect(`/cabinet/athletes/${athleteId}?error=submission_invalid`);
+    redirect(`/admin/athletes/${athleteId}?error=submission_invalid`);
   }
 
   await createSubmissionByAdmin(athleteId, validation.data);
   revalidateAppShell();
-  redirect(`/cabinet/athletes/${athleteId}`);
+  redirect(`/admin/athletes/${athleteId}`);
 }
 
 export async function saveAthleteSubmissionByAdmin(formData: FormData) {
@@ -276,12 +280,12 @@ export async function saveAthleteSubmissionByAdmin(formData: FormData) {
   });
 
   if (!validation.success) {
-    redirect(`/cabinet/athletes/${athleteId}?error=submission_invalid`);
+    redirect(`/admin/athletes/${athleteId}?error=submission_invalid`);
   }
 
   await updateSubmissionByAdmin(submissionId, validation.data);
   revalidateAppShell();
-  redirect(`/cabinet/athletes/${athleteId}`);
+  redirect(`/admin/athletes/${athleteId}`);
 }
 
 export async function removeAthleteSubmissionByAdmin(formData: FormData) {
@@ -290,5 +294,5 @@ export async function removeAthleteSubmissionByAdmin(formData: FormData) {
   const athleteId = String(formData.get("athleteId") ?? "");
   await deleteSubmissionByAdmin(String(formData.get("submissionId") ?? ""));
   revalidateAppShell();
-  redirect(`/cabinet/athletes/${athleteId}`);
+  redirect(`/admin/athletes/${athleteId}`);
 }

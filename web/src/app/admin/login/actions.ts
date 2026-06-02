@@ -23,7 +23,7 @@ export async function loginAdmin(
   if (result.success) {
     const adminUser = await ensureAdminUser();
     await setAdminSession(adminUser.id);
-    redirect("/cabinet");
+    redirect("/admin");
   }
 
   const dbAdmin = await authenticateAdminUser(
@@ -38,5 +38,5 @@ export async function loginAdmin(
   }
 
   await setAdminSession(dbAdmin.id);
-  redirect("/cabinet");
+  redirect("/admin");
 }

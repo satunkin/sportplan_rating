@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
@@ -41,9 +42,15 @@ export default async function AdminSubmissionsPage({
           </div>
           <div className="flex flex-col items-start gap-3 md:items-end">
             <p className="text-sm leading-6 text-muted">
-              Здесь администратор видит все заявки со статусом
-              `PENDING_MANUAL_REVIEW` и может принять первичное решение.
+              Здесь администратор видит заявки из будущего Telegram-бота и
+              текущих ручных форм со статусом проверки.
             </p>
+            <Link
+              className="text-sm font-semibold text-accent underline-offset-4 hover:underline"
+              href="/admin"
+            >
+              В админ-панель
+            </Link>
             <form action={logoutAdmin}>
               <button
                 className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-semibold text-accent-strong transition hover:bg-white"

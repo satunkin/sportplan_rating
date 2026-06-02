@@ -63,8 +63,8 @@ export default async function EditEventPage({
             <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href={`/events/${event.id}`}>
               Публичная карточка
             </Link>
-            <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href="/cabinet">
-              Вернуться в кабинет
+            <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href="/admin/events">
+              К списку соревнований
             </Link>
           </div>
         </article>

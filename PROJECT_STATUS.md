@@ -18,23 +18,38 @@
 ## 1. Current State
 
 Updated: `2026-05-30`
-Project phase: `MVP information architecture + protocol-import foundation`
+Project phase: `UX redesign foundation + admin information architecture`
 Primary app path: `/Users/satunkin/Codex_projects/rating/web`
 Git remote: `https://github.com/satunkin/sportplan_rating.git`
 Current branch: `main`
 
 Current product state:
-- есть главная страница, role-based `/cabinet`, подача результата, админский вход, очередь модерации, публичный рейтинг, публичная карточка спортсмена и публичная карточка соревнования;
-- `/cabinet` теперь разводит сценарии по роли: спортсмен получает настройки публичного профиля и управление своими результатами, администратор — соревнования, спортсменов, администраторов и быстрый вход в moderation queue;
-- есть новый публичный раздел `/events` со списком соревнований и страницами `/events/[eventId]`;
-- администратор может создавать, редактировать и удалять карточки соревнований, а также редактировать карточку спортсмена и его результаты из кабинета;
-- спортсмен может менять имя для публичной карточки, включать/выключать публикацию всех результатов, редактировать прошлые результаты с повторной отправкой на подтверждение и удалить свой профиль;
+- публичный сайт переведен на новую UX-структуру: отдельные страницы `/`, `/leaderboard`, `/events`, `/events/[eventId]`, `/athletes/[athleteId]`, `/rules`, `/participate`;
+- главная теперь начинается с рейтинга сезона: две компактные колонки топ-10 мужчин и женщин, строки ведут в публичные карточки спортсменов;
+- публичный рейтинг очищен от технического `ScoreBreakdown`: показывает место, спортсмена, очки, три лучших результата и понятный статус `зачет/резерв`;
+- рейтинг теперь считается, сохраняется и показывается отдельно для мужчин и женщин; общего зачета в публичном UX больше нет;
+- `listLeaderboard({ gender })` перенумеровывает позиции внутри выбранного пола, поэтому мужской и женский зачет оба начинаются с `1` даже до следующего пересчета БД;
+- `/leaderboard` показывает только переключатель `Мужчины` / `Женщины`; фильтр `Пол` убран, дефолтный зачет — мужской;
+- публичные карточки спортсмена и соревнования стали более компактными data-страницами без developer-oriented пояснений;
+- публичный список соревнований группирует старты с одинаковыми названием/датой/дисциплиной/локацией как одно соревнование с несколькими дистанциями;
+- для будущих соревнований публичный UX не показывает протокол и участников рейтинга; эти данные появляются только для прошедших стартов;
+- в `/events` добавлен фильтр по типу соревнования (`Discipline`);
+- публичный путь спортсмена теперь описан как Telegram-first: `/participate` объясняет регистрацию, отправку результатов, проверку админом и публикацию на сайте;
+- шапка и подвал больше не ведут пользователя в веб-кабинет спортсмена как основной сценарий; футер содержит отдельную ссылку `Администратору`;
+- админский вход `/admin/login` теперь ведет в новый dashboard `/admin`;
+- добавлены новые рабочие админ-разделы: `/admin`, `/admin/events`, `/admin/athletes`, `/admin/broadcasts`;
+- `/admin/events` показывает соревнования, статус протокола и создает карточки стартов; сохранение поддержанных ссылок по-прежнему запускает импорт протокола;
+- `/admin/athletes` показывает список участников, поиск и форму ручного создания спортсмена;
+- `/admin/broadcasts` содержит UX-заготовку рассылок с фильтрами, preview и счетчиками, но фактическая отправка ждет Telegram-бота;
+- старые `/cabinet`-маршруты пока физически остаются как совместимость для уже реализованных athlete/admin flows, но не являются целевой публичной UX-навигацией;
+- форма подачи результата по вебу пока сохранена технически, но целевой спортсменский путь перенесен в будущий Telegram-бот;
+- в данные соревнований добавлен публично используемый счетчик `protocolRowsCount` для статуса импортированного протокола;
 - форма подачи результата теперь выбирает соревнование из существующих `Event`, умеет переключиться на ручной ввод, подставляет дату/дисциплину/дистанцию/протокол, использует календарную дату с годом и подсвечивает ошибки без сброса введенных данных;
 - в модель результата добавлены `placementOverall` и `placementInAgeGroup`, чтобы карточки соревнований и спортсменов показывали не только время и очки, но и места;
 - в модель спортсмена добавлены `publicDisplayName` и `showPublicResults` для контроля публичного профиля;
 - админский login теперь пропускает не только env-admin, но и пользователей с ролью `ADMIN`, созданных из кабинета;
 - есть публичная страница методологии рейтинга;
-- есть athlete-facing UX pass: главная теперь показывает сам рейтинг, краткие правила, путь участника и быстрые ссылки на кабинет и полные правила;
+- визуальная система начала переход к `DESIGN.md`: белые поверхности, строгая серо-черная типографика, один синий CTA, меньше радиусов/теней/декора на новых публичных и админских страницах;
 - есть общий footer с юридическими ссылками и базовые placeholder-страницы `Пользовательское соглашение` и `Соглашение о персональных данных`;
 - есть заметный UI-паттерн `TechnicalNote` для сохранения внутренних технических пояснений рядом с пользовательскими текстами;
 - есть UI-объяснение расчета очков внутри leaderboard, кабинета и публичной карточки спортсмена;
@@ -78,25 +93,26 @@ Current product state:
 Current limitation:
 - это еще не production-ready MVP;
 - авторизация стала безопаснее на уровне cookie/session, athlete magic link и admin credentials, но Telegram auth пока не подключен, а SMTP для production сознательно отложен на более поздний этап;
-- импорт протоколов пока не встроен в UI и не запускается автоматически из карточки соревнования;
-- импорт протоколов пока file-based и CLI-first: до UI в кабинете ещё не доведён;
+- импорт протоколов встроен в admin event create/update flow для поддержанных ссылок, но полноценного ручного UI для просмотра/редактирования строк `EventProtocolRow` еще нет;
 - `runc.run` и `grom.place` уже имеют рабочие артефакты, но новые организаторы пока нужно добавлять вручную через отдельный skill;
 - auto-import из кабинета уже работает через live parser для `runc.run` и `RaceResult`, но остальные организаторы по-прежнему не поддержаны;
 - создание администраторов уже переведено в UI, но полноценный audit trail still uses the legacy fallback admin actor inside moderation actions;
 - runtime уже живет на Postgres-first path, но production env layout (`DATABASE_URL`, `DIRECT_URL`, SMTP, public URL) еще не доведен до финального deploy shape;
 - hosted deploy пока блокируется как минимум отсутствием production SMTP setup и публичного `APP_BASE_URL`; кроме того, локальная reachability Supabase может зависеть от среды выполнения;
 - нет production deployment path для размещенного сайта;
-- нет рабочего Telegram-бота для участников.
-- часть экранов уже переписана на язык атлета, но remaining copy pass и backend-выравнивание под новый UX еще впереди.
+- нет рабочего Telegram-бота для участников;
+- часть legacy athlete web flows еще живет в коде и требует отдельного решения: оставить как fallback или удалить после подключения Telegram.
 
 ---
 
 ## 2. Confirmed Decisions
 
-- Главный канал продукта: `website`.
-- Telegram пока не является основным интерфейсом MVP.
+- Главный публичный канал продукта: `website`.
+- Целевой интерфейс спортсмена для регистрации, изменения имени, отправки и удаления результатов: `Telegram bot`.
+- Веб-сайт остается публичной витриной рейтинга, соревнований, правил и протоколов плюс рабочей админ-панелью.
 - Для dev-режима допустим временный локальный persistence-layer, если он ускоряет реальную проверку UX.
 - Рейтинг считается по сумме `3 лучших` подтвержденных результатов.
+- Нет общего публичного рейтинга: мужской и женский зачеты считаются, сохраняются и показываются отдельно.
 - Очки зависят от:
   - категории дистанции;
   - отставания от `5-го места` в возрастной группе.
@@ -109,6 +125,9 @@ Current limitation:
 - Файл `PROJECT_STATUS.md` является основной межчатовой памятью проекта.
 - Для публичной карточки спортсмена имя и полная история результатов контролируются самим спортсменом через настройки профиля.
 - Следующий крупный UX/design этап не должен начинаться с переписывания проекта с нуля: сохраняем backend/core-логику, БД, auth, рейтинг, заявки и модерацию, а заново проектируем пользовательский путь, структуру страниц и визуальную систему поверх текущего ядра.
+- Google Sheets не является целевым рабочим интерфейсом админа; подтверждение, редактирование и удаление результатов должны идти через админ-панель.
+- Публичные карточки спортсменов и соревнований реализуются отдельными страницами, а не попапами, чтобы сохранить прямые ссылки и нормальный мобильный UX.
+- `DESIGN.md` принят как визуальный ориентир: минимализм, белые поверхности, один синий акцент, компактные data-интерфейсы без лишнего декора.
 
 ---
 
@@ -128,7 +147,8 @@ Data / backend:
 Current key files:
 - PRD: [docs/PRD.md](/Users/satunkin/Codex_projects/rating/docs/PRD.md)
 - Implementation plan: [docs/IMPLEMENTATION_PLAN.md](/Users/satunkin/Codex_projects/rating/docs/IMPLEMENTATION_PLAN.md)
-- Main routes: [web/src/app/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/page.tsx), [web/src/app/cabinet/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/page.tsx), [web/src/app/leaderboard/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/leaderboard/page.tsx), [web/src/app/events/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/events/page.tsx), [web/src/app/rules/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/rules/page.tsx)
+- Main public routes: [web/src/app/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/page.tsx), [web/src/app/leaderboard/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/leaderboard/page.tsx), [web/src/app/events/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/events/page.tsx), [web/src/app/rules/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/rules/page.tsx), [web/src/app/participate/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/participate/page.tsx)
+- Admin routes: [web/src/app/admin/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/admin/page.tsx), [web/src/app/admin/events/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/admin/events/page.tsx), [web/src/app/admin/athletes/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/admin/athletes/page.tsx), [web/src/app/admin/submissions/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/admin/submissions/page.tsx), [web/src/app/admin/broadcasts/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/admin/broadcasts/page.tsx)
 - Admin detail routes: [web/src/app/cabinet/athletes/[athleteId]/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/athletes/[athleteId]/page.tsx), [web/src/app/cabinet/events/[eventId]/edit/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/cabinet/events/[eventId]/edit/page.tsx)
 - Athlete edit route: [web/src/app/results/[submissionId]/edit/page.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/results/[submissionId]/edit/page.tsx)
 - Shared UX blocks: [web/src/app/site-header.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/site-header.tsx), [web/src/app/site-footer.tsx](/Users/satunkin/Codex_projects/rating/web/src/app/site-footer.tsx), [web/src/components/technical-note.tsx](/Users/satunkin/Codex_projects/rating/web/src/components/technical-note.tsx)
@@ -146,6 +166,12 @@ Key routes implemented:
 - `/cabinet`
 - `/cabinet/athletes/[athleteId]`
 - `/cabinet/events/[eventId]/edit`
+- `/admin`
+- `/admin/events`
+- `/admin/events/[eventId]/edit`
+- `/admin/athletes`
+- `/admin/athletes/[athleteId]`
+- `/admin/broadcasts`
 - `/results/new`
 - `/results/[submissionId]/edit`
 - `/admin/login`
@@ -154,6 +180,7 @@ Key routes implemented:
 - `/events/[eventId]`
 - `/leaderboard`
 - `/rules`
+- `/participate`
 - `/athletes/[athleteId]`
 
 ---
@@ -165,6 +192,13 @@ Implemented product slices:
 - git initialization and GitHub remote setup;
 - PRD and implementation docs;
 - public homepage;
+- redesigned public homepage with immediate male/female top-10 leaderboard columns;
+- Tesla-inspired public visual baseline from `DESIGN.md` applied to the new public/admin structure;
+- `/participate` page for the Telegram-first athlete journey;
+- `/admin` dashboard as the main administrator entry after login;
+- dedicated admin sections `/admin/events`, `/admin/athletes`, `/admin/broadcasts`;
+- admin login redirect now lands on `/admin`;
+- public leaderboard and public athlete/event cards simplified for end-user reading without technical score-debug blocks;
 - athlete-facing homepage with leaderboard preview, quick rules, and action-oriented navigation;
 - athlete registration foundation;
 - athlete login by email and password;
@@ -208,8 +242,10 @@ Implemented product slices:
 - public leaderboard reads no longer run score-rule seed/upsert work on every request.
 
 Implemented developer validation:
-- `npm run lint` passes after recent working cycles;
-- `npm run build` passes after the 2026-05-30 audit fixes;
+- `npm run lint` passes after the 2026-05-30 UX redesign foundation;
+- `npm run build` passes after the 2026-05-30 UX redesign foundation;
+- in-app browser smoke check passed for `/`, `/leaderboard`, `/events`, `/participate`, `/admin/login`;
+- mobile-width browser smoke check passed for `/`, `/leaderboard`, `/events` with no document-level horizontal overflow at `390px`;
 - `npm run db:smoke:postgres` validates the runtime PostgreSQL path, but in some local/sandbox environments may fail if the current runtime cannot reach Supabase over the network;
 - `npm run db:seed:demo` is rerunnable and produces a valid demo ranking snapshot on Supabase.
 - `npm run deploy:check` теперь задуман как реальный pre-deploy smoke check для env + DB + SMTP readiness, включая проверку RLS на публичных app-таблицах.
@@ -219,16 +255,16 @@ Implemented developer validation:
 ## 5. Open Gaps
 
 Still not done from the original project intent:
-- production-hardening of participant auth (`SMTP`, email verification polish, password reset, optional Telegram link);
+- production-hardening of participant identity around Telegram bot and any remaining web fallback;
 - hosted deployment path for the website still needs a first real execution pass by the documented runbook;
-- no UI for protocol import inside admin cabinet yet;
+- no first-class protocol row viewer/editor inside admin UI yet;
 - first-class protocol rows editing/import UI for `EventProtocolRow`;
 - semi-automatic or automatic result validation;
 - management UI for seasons, score rules, event categories;
 - appeals/dispute flow;
-- notifications;
+- notifications and Telegram broadcast delivery;
 - working Telegram bot for participants;
-- public filters beyond current basic leaderboard filters;
+- public filters beyond current leaderboard age-group/discipline filters and events discipline filter;
 - protection against duplicates and moderation edge cases.
 - final legal copy for user agreement and personal-data policy.
 
@@ -243,7 +279,9 @@ Current technical debt:
 - organizer-level resolver уже есть для `runc.run` и `RaceResult`, но:
   - `RaceResult` пока опирается на XLSX link из `InfoText` config-а;
   - итоговый matching imported protocol rows к athlete submissions ещё не автоматизирован;
-- часть UI-текстов уже адаптирована под новую структуру, но remaining copy pass и deeper backend-normalization still remain.
+- legacy athlete web cabinet/result routes still exist for compatibility and need a later keep/remove decision after Telegram bot implementation;
+- new admin broadcasts page is UX-only until Telegram delivery exists;
+- часть UI-текстов уже адаптирована под новую структуру, но remaining copy pass and deeper backend-normalization still remain.
 
 ---
 
@@ -294,13 +332,13 @@ P0 — mandatory before launch:
 1. execute and verify the first real server migration + hosted deploy pass on the now-active PostgreSQL runtime using `docs/DEPLOY_RUNBOOK.md`;
 2. отдельно догнать live Supabase до repository migrations и подтвердить, что warning `rls_disabled_in_public` исчез после `db:deploy` / SQL hotfix;
 3. finish production email setup for magic-link auth (`SMTP`, `APP_BASE_URL`, end-to-end email check) after current product-critical coding slices;
-4. keep registration, cabinet, result submission, moderation queue, and leaderboard fully working on hosted production DB;
+4. keep public rating, admin dashboard, admin event/athlete management, moderation queue, and remaining fallback submission flows working on hosted production DB;
 5. continue extending manual moderation toward protocol-aware helpers and connect the new protocol-import foundation to real admin workflows;
 6. continue closing remaining ranking correctness gaps beyond exact duplicates and tie-break;
 7. run end-to-end launch validation on hosted environment.
-8. after the current UX pass, align backend statuses and remaining copy with the updated athlete-facing screen structure.
+8. align backend statuses and remaining copy with the updated Telegram-first athlete journey.
 9. add real role-selection flow for emails that should act as both athlete and admin.
-10. before continuing UI implementation, make a new UX-structure document from Nikolay's next-chat requirements and design references, then use it as the blueprint for the redesign.
+10. decide whether legacy athlete web cabinet/result routes should remain as fallback after Telegram bot delivery.
 
 P1 — important after P0, before broader growth:
 1. укрепить live parser layer для `runc.run` и `RaceResult` на большем числе реальных стартов и добавить новых организаторов;
@@ -311,6 +349,7 @@ P1 — important after P0, before broader growth:
 P2 — after core web MVP, before UX polish:
 1. build working Telegram bot for participants;
 2. connect Telegram bot to account / notification / lightweight submission flows.
+3. connect `/admin/broadcasts` to real Telegram delivery with safe preview/confirmation.
 
 P3 — after launch foundation:
 1. finish UI polish requested in browser comments;
@@ -318,7 +357,7 @@ P3 — after launch foundation:
 3. add richer public experience and secondary product polish.
 
 Current best next coding step:
-- in the next chat, first gather Nikolay's desired user journey and design references, then produce a UX-structure document for the redesign while preserving the current backend/core logic.
+- build the Telegram bot integration or deepen the admin protocol workflow (`EventProtocolRow` viewer/editor and matching imported rows to submissions), depending on Nikolay's priority.
 
 ---
 
@@ -345,6 +384,9 @@ Current best next coding step:
 - `2026-05-13`: athlete auth moved from session-only behavior to DB-backed email+password login baseline with a dedicated `/login` route.
 - `2026-05-30`: audit pass hardened admin server actions, moved leaderboard public reads off write/seed paths, and improved result-submission UX validation.
 - `2026-05-30`: redesign direction chosen: keep the current backend/core implementation and redesign UX structure, page hierarchy, and visual system in a follow-up chat.
+- `2026-05-30`: UX redesign foundation implemented: public site moved to separate data-first pages, admin dashboard moved to `/admin`, athlete target journey became Telegram-first, and `DESIGN.md` became the visual baseline.
+- `2026-06-01`: overall leaderboard removed from public UX; rating is male/female only, leaderboard gender filter was replaced by two tabs, public events gained discipline filtering and grouped multi-distance competition cards.
+- `2026-06-01`: ranking numbering fixed to be independent per gender; male and female leaderboards both start from rank `1`.
 - `2026-05-13`: athlete login shifted to email magic link as the primary web auth path, with DB-backed one-time tokens and dev preview when SMTP is absent.
 - `2026-05-13`: hosted deployment prep added with `/api/health`, `deploy:check`, and explicit Vercel/PostgreSQL/SMTP requirements.
 - `2026-05-13`: runtime DB wiring isolated behind `DATABASE_URL` and a single adapter-selection layer; next DB cutover blocker is canonical Prisma provider and migrations.
