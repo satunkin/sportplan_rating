@@ -37,7 +37,7 @@ function Pagination({
   if (pages <= 1) return null;
 
   return (
-    <nav className="mt-3 flex items-center justify-between text-sm">
+    <nav className="mt-4 flex items-center justify-between px-1 text-sm">
       {page > 1 ? (
         <Link className="font-semibold text-accent" href={pageHref(current, pageKey, page - 1)}>
           ← Назад
@@ -111,28 +111,44 @@ export default async function LeaderboardPage({
   );
 
   return (
-    <main className="page-shell min-h-screen">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
-        <header className="border-b border-border pb-6">
-          <p className="text-sm font-semibold text-accent">Кубок Циклон · 2026</p>
-          <h1 className="mt-2 text-4xl font-medium text-foreground">
+    <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <header className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+            Кубок Циклон · 2026
+          </p>
+          <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-accent-strong sm:text-5xl">
             Полный рейтинг
           </h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-muted">
+          <p className="mt-5 max-w-3xl text-base leading-8 text-muted sm:text-lg">
             Места и очки уже рассчитаны. Поиск и фильтры только сокращают
             отображаемый список и не меняют формулу рейтинга.
           </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
+              href="/rules"
+            >
+              Посмотреть правила
+            </Link>
+            <Link
+              className="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-white px-6 py-3 text-base font-semibold text-foreground transition hover:bg-surface-strong"
+              href="/events"
+            >
+              Открыть соревнования
+            </Link>
+          </div>
         </header>
 
-        <form className="grid gap-3 border border-border bg-white px-4 py-4 md:grid-cols-5">
+        <form className="grid gap-3 rounded-[1.75rem] border border-border bg-surface px-5 py-5 md:grid-cols-5">
           <input
-            className="min-h-11 border border-border px-3 text-sm"
+            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
             defaultValue={params.q}
             name="q"
             placeholder="Имя атлета"
           />
           <select
-            className="min-h-11 border border-border px-3 text-sm"
+            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
             defaultValue={params.ageGroup ?? ""}
             name="ageGroup"
           >
@@ -144,7 +160,7 @@ export default async function LeaderboardPage({
             ))}
           </select>
           <select
-            className="min-h-11 border border-border px-3 text-sm"
+            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
             defaultValue={params.club ?? ""}
             name="club"
           >
@@ -156,7 +172,7 @@ export default async function LeaderboardPage({
             ))}
           </select>
           <select
-            className="min-h-11 border border-border px-3 text-sm"
+            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
             defaultValue={params.coach ?? ""}
             name="coach"
           >
@@ -168,7 +184,7 @@ export default async function LeaderboardPage({
             ))}
           </select>
           <button
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white"
+            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white transition hover:bg-accent-strong"
             type="submit"
           >
             Применить

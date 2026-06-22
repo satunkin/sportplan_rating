@@ -34,14 +34,18 @@ function LeaderboardColumn({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <section className="border border-border bg-white">
-      <div className="flex items-center justify-between border-b border-border px-4 py-4">
-        <h2 className="text-xl font-medium text-foreground">{title}</h2>
-        <span className="text-sm text-muted">{rows.length}</span>
+    <section className="overflow-hidden rounded-[2rem] border border-border bg-white/78">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-5">
+        <h2 className="text-2xl font-semibold tracking-tight text-accent-strong">
+          {title}
+        </h2>
+        <span className="rounded-full bg-surface-strong px-3 py-1.5 text-sm text-muted">
+          {rows.length}
+        </span>
       </div>
 
       {rows.length === 0 ? (
-        <p className="px-4 py-10 text-sm text-muted">Ничего не найдено.</p>
+        <p className="px-6 py-10 text-sm text-muted">Ничего не найдено.</p>
       ) : (
         <div className="divide-y divide-border">
           {rows.map((row) => {
@@ -51,7 +55,7 @@ function LeaderboardColumn({
               <article key={row.id}>
                 <button
                   aria-expanded={expanded}
-                  className="grid w-full grid-cols-[40px_minmax(0,1fr)_74px] items-center gap-3 px-4 py-4 text-left transition hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+                  className="grid w-full grid-cols-[40px_minmax(0,1fr)_74px] items-center gap-3 px-6 py-4 text-left transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
                   onClick={() => setExpandedId(expanded ? null : row.id)}
                   type="button"
                 >
@@ -76,7 +80,7 @@ function LeaderboardColumn({
                 </button>
 
                 {expanded ? (
-                  <div className="border-t border-border bg-surface-strong px-4 py-4">
+                  <div className="border-t border-border bg-surface px-6 py-5">
                     {row.clubs.length || row.coaches.length || row.telegramUsername ? (
                       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
                         {row.clubs.map((club) => (
@@ -113,7 +117,7 @@ function LeaderboardColumn({
                     <div className="grid gap-2">
                       {row.results.map((result) => (
                         <div
-                          className="grid gap-2 border border-border bg-white px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_90px_70px_70px]"
+                          className="grid gap-2 rounded-[1.25rem] border border-border bg-white px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_90px_70px_70px]"
                           key={result.id}
                         >
                           <span className="min-w-0">
@@ -167,12 +171,12 @@ export function LeaderboardBoard({
 
   return (
     <>
-      <div className="grid grid-cols-2 border border-border md:hidden">
+      <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border bg-white md:hidden">
         <button
           className={`min-h-11 px-4 text-sm font-semibold ${
             mobileGender === "male"
               ? "bg-accent text-white"
-              : "bg-white text-foreground"
+              : "bg-white text-foreground hover:bg-surface-strong"
           }`}
           onClick={() => setMobileGender("male")}
           type="button"
@@ -183,7 +187,7 @@ export function LeaderboardBoard({
           className={`min-h-11 px-4 text-sm font-semibold ${
             mobileGender === "female"
               ? "bg-accent text-white"
-              : "bg-white text-foreground"
+              : "bg-white text-foreground hover:bg-surface-strong"
           }`}
           onClick={() => setMobileGender("female")}
           type="button"

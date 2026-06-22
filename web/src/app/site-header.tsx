@@ -35,11 +35,11 @@ export function SiteHeader() {
         </div>
         <nav
           aria-label="Мобильная навигация"
-          className="-mx-1 flex gap-1 overflow-x-auto md:hidden"
+          className="-mx-1 grid grid-cols-4 md:hidden"
         >
           {navigationLinks.map((link) => (
             <Link
-              className="inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-sm font-medium text-foreground transition hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="inline-flex min-h-11 items-center justify-center rounded-md px-1 text-center text-xs font-medium text-foreground transition hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               href={link.href}
               key={link.href}
             >

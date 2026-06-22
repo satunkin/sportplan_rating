@@ -12,7 +12,7 @@
 - Public routes: `/`, `/leaderboard`, `/events`, `/events/[competitionId]`, `/clubs/[clubId]`, `/coaches/[coachId]`, `/rules`, `/participate`.
 - Athlete public profiles are retired: `/athletes/[athleteId]` redirects to `/leaderboard`.
 - Admin routes include dashboard, competitions, athletes, moderation, clubs/trainers and broadcasts.
-- Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret, public bot URL and webhook registration are still required.
+- Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, but webhook registration is still required.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
 - Migration result: `13` competitions, `13` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `11` submissions and `10` verified results.
@@ -71,19 +71,19 @@
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
+- Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
 
 ## 5. Open Gaps
 
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` and `NEXT_PUBLIC_TELEGRAM_BOT_URL` are not configured in the checked-in environment template.
 - Production webhook has not been registered; run `npm run telegram:set-webhook` after public deployment.
-- Live Telegram chat was not tested because no bot token was available.
+- Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
 - Telegram notifications are immediate with delivery logging; automatic retry worker is not implemented.
 - Broadcasts remain a UI scaffold and are not connected to bulk Telegram delivery.
 - Legacy web athlete cabinet/result routes remain for compatibility.
 - Imported protocol rows are grouped and benchmarked, but automatic athlete-row matching is not yet implemented.
-- Production SMTP and hosted deployment remain incomplete.
+- Production SMTP is intentionally optional; without it only the legacy athlete magic-link login is unavailable.
 - Telegram webhook has not yet been registered with Telegram.
 - `plansporta.ru` still points to the old Netlify deployment.
 
