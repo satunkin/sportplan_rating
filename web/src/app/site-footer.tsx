@@ -7,7 +7,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="w-full lg:flex-1">
             <p className="text-sm font-semibold tracking-[0.08em] text-foreground">
-              SportPlan rating
+              Кубок Циклон · 2026
             </p>
             <p className="mt-3 text-sm leading-7 text-muted">
               Открытый сезонный рейтинг спортсменов на основе подтвержденных

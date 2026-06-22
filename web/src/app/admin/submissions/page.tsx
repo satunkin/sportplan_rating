@@ -2,17 +2,27 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
+  approveProposal,
+  rejectProposal,
+  reviewLinkRequest,
+} from "@/app/admin/management-actions";
+import {
   approveSubmission,
   logoutAdmin,
   rejectSubmission,
   seedDemoData,
 } from "@/app/admin/submissions/actions";
 import {
+  asJsonObject,
+  listEntityProposals,
+  listPendingAthleteLinkRequests,
+} from "@/lib/cyclon-service";
+import {
   getCategoryOptionsForDiscipline,
   listPendingSubmissions,
 } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
-import { formatDate } from "@/lib/time";
+import { formatDate, formatDurationFromSeconds } from "@/lib/time";
 
 export default async function AdminSubmissionsPage({
   searchParams,
@@ -26,7 +36,11 @@ export default async function AdminSubmissionsPage({
   }
 
   const { error, submissionId } = await searchParams;
-  const submissions = await listPendingSubmissions();
+  const [submissions, proposals, linkRequests] = await Promise.all([
+    listPendingSubmissions(),
+    listEntityProposals(),
+    listPendingAthleteLinkRequests(),
+  ]);
 
   return (
     <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
@@ -42,8 +56,8 @@ export default async function AdminSubmissionsPage({
           </div>
           <div className="flex flex-col items-start gap-3 md:items-end">
             <p className="text-sm leading-6 text-muted">
-              Здесь администратор видит заявки из будущего Telegram-бота и
-              текущих ручных форм со статусом проверки.
+              Здесь администратор видит заявки из Telegram-бота и текущих
+              ручных форм со статусом проверки.
             </p>
             <Link
               className="text-sm font-semibold text-accent underline-offset-4 hover:underline"
@@ -249,6 +263,15 @@ export default async function AdminSubmissionsPage({
                           className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
                           name="fifthPlaceTime"
                           placeholder="Время 5-го места, например 41:50"
+                          defaultValue={
+                            submission.moderationSummary
+                              .suggestedFifthPlaceTimeSeconds
+                              ? formatDurationFromSeconds(
+                                  submission.moderationSummary
+                                    .suggestedFifthPlaceTimeSeconds,
+                                )
+                              : ""
+                          }
                           required
                         />
                         <input
@@ -338,6 +361,101 @@ export default async function AdminSubmissionsPage({
             ))}
           </div>
         )}
+
+        <section className="mt-10 border-t border-border pt-8">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-sm font-semibold text-accent">
+                Предложения из Telegram
+              </p>
+              <h2 className="mt-2 text-2xl font-medium text-foreground">
+                Соревнования, клубы и тренеры
+              </h2>
+            </div>
+            <span className="text-sm text-muted">{proposals.length}</span>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {proposals.map((proposal) => {
+              const payload = asJsonObject(proposal.payloadJson);
+              return (
+                <article className="border border-border bg-white px-5 py-5" key={proposal.id}>
+                  <p className="text-sm font-semibold text-accent">{proposal.type}</p>
+                  <p className="mt-2 font-semibold text-foreground">
+                    {String(payload.name ?? "Без названия")}
+                  </p>
+                  {payload.date || payload.distance ? (
+                    <p className="mt-1 text-sm text-muted">
+                      {String(payload.date ?? "")} · {String(payload.distance ?? "")}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <form action={approveProposal} className="flex gap-2">
+                      <input name="proposalId" type="hidden" value={proposal.id} />
+                      <input className="min-h-10 flex-1 border border-border px-3 text-sm" name="targetEntityId" placeholder="ID существующей записи для объединения" />
+                      <button className="min-h-10 rounded-md bg-accent px-4 text-sm font-semibold text-white" type="submit">
+                        Подтвердить
+                      </button>
+                    </form>
+                    <form action={rejectProposal} className="flex gap-2">
+                      <input name="proposalId" type="hidden" value={proposal.id} />
+                      <input className="min-h-10 flex-1 border border-border px-3 text-sm" name="notes" placeholder="Причина" />
+                      <button className="min-h-10 rounded-md border border-border px-4 text-sm font-semibold" type="submit">
+                        Отклонить
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              );
+            })}
+            {!proposals.length ? (
+              <p className="border border-dashed border-border px-5 py-6 text-sm text-muted">
+                Новых предложений нет.
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="mt-10 border-t border-border pt-8">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-sm font-semibold text-accent">
+                Безопасное связывание
+              </p>
+              <h2 className="mt-2 text-2xl font-medium text-foreground">
+                Telegram и существующие атлеты
+              </h2>
+            </div>
+            <span className="text-sm text-muted">{linkRequests.length}</span>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {linkRequests.map((request) => (
+              <article className="border border-border bg-white px-5 py-5" key={request.id}>
+                <p className="font-semibold text-foreground">
+                  Кандидат: {request.candidateAthlete?.firstName}{" "}
+                  {request.candidateAthlete?.lastName}
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  Telegram: @{request.telegramUsername ?? "username отсутствует"} · ID{" "}
+                  {request.telegramId}
+                </p>
+                <form action={reviewLinkRequest} className="mt-4 flex flex-wrap gap-2">
+                  <input name="requestId" type="hidden" value={request.id} />
+                  <button className="min-h-10 rounded-md bg-accent px-4 text-sm font-semibold text-white" name="decision" type="submit" value="approve">
+                    Связать
+                  </button>
+                  <button className="min-h-10 rounded-md border border-border px-4 text-sm font-semibold" name="decision" type="submit" value="reject">
+                    Отклонить
+                  </button>
+                </form>
+              </article>
+            ))}
+            {!linkRequests.length ? (
+              <p className="border border-dashed border-border px-5 py-6 text-sm text-muted">
+                Запросов на связывание нет.
+              </p>
+            ) : null}
+          </div>
+        </section>
       </section>
     </main>
   );

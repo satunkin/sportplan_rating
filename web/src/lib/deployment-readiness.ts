@@ -63,8 +63,22 @@ export async function getDeploymentReadinessReport() {
   }
 
   if (!getSmtpConfig()) {
-    blockers.push(
-      "SMTP is not fully configured. Magic-link login needs SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, and EMAIL_FROM.",
+    warnings.push(
+      "SMTP is not configured. Telegram and admin password login will work, but the legacy athlete magic-link login will be unavailable.",
+    );
+  }
+
+  if (!process.env.TELEGRAM_BOT_TOKEN?.trim()) {
+    blockers.push("TELEGRAM_BOT_TOKEN is not configured.");
+  }
+
+  if (!process.env.TELEGRAM_WEBHOOK_SECRET?.trim()) {
+    blockers.push("TELEGRAM_WEBHOOK_SECRET is not configured.");
+  }
+
+  if (!process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL?.trim()) {
+    warnings.push(
+      "NEXT_PUBLIC_TELEGRAM_BOT_URL is not configured. The participation page cannot link directly to the bot.",
     );
   }
 

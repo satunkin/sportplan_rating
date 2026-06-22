@@ -12,8 +12,10 @@ export type ResultSubmissionInput = {
   eventDate: string;
   discipline: DisciplineValue;
   distanceLabel: string;
+  categoryKey?: string;
   ageGroupClaimed: string;
   finishTime: string;
+  fifthPlaceTime?: string;
   protocolUrl: string;
   placementOverall: string;
   placementInAgeGroup: string;
@@ -110,8 +112,10 @@ export function validateResultSubmission(
   const eventName = normalizeSpace(input.eventName);
   const eventDate = normalizeSeasonDate(input.eventDate);
   const distanceLabel = normalizeSpace(input.distanceLabel);
+  const categoryKey = normalizeSpace(input.categoryKey ?? "");
   const ageGroupClaimed = normalizeSpace(input.ageGroupClaimed);
   const finishTime = input.finishTime.trim();
+  const fifthPlaceTime = (input.fifthPlaceTime ?? "").trim();
   const protocolUrl = input.protocolUrl.trim();
   const placementOverall = input.placementOverall.trim();
   const placementInAgeGroup = input.placementInAgeGroup.trim();
@@ -153,6 +157,12 @@ export function validateResultSubmission(
     fieldErrors.finishTime = message;
   }
 
+  if (fifthPlaceTime && !isValidTime(fifthPlaceTime)) {
+    const message = "Время 5-го места должно быть в формате мм:сс или чч:мм:сс.";
+    errors.push(message);
+    fieldErrors.fifthPlaceTime = message;
+  }
+
   if (protocolUrl && !isValidUrl(protocolUrl)) {
     const message = "Если ссылка на протокол указана, она должна быть корректной.";
     errors.push(message);
@@ -182,8 +192,10 @@ export function validateResultSubmission(
       eventDate: eventDate!,
       discipline: input.discipline,
       distanceLabel,
+      categoryKey,
       ageGroupClaimed,
       finishTime,
+      fifthPlaceTime,
       protocolUrl,
       placementOverall,
       placementInAgeGroup,

@@ -1,0 +1,8 @@
+[build]
+  base = "web"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20.19.4"
+  NETLIFY_NEXT_SKEW_PROTECTION = "true"

@@ -1,10 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { reviewSubmission, seedDemoScenario } from "@/lib/db";
 import { clearAdminSession, hasAdminSession } from "@/lib/session";
+import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
+
+function revalidatePublicData() {
+  revalidateTag(PUBLIC_DATA_CACHE_TAG, "max");
+  revalidatePath("/");
+  revalidatePath("/events");
+  revalidatePath("/leaderboard");
+}
 
 async function requireAdminSession() {
   if (!(await hasAdminSession())) {
@@ -94,7 +102,7 @@ export async function approveSubmission(formData: FormData) {
 
   revalidatePath("/admin/submissions");
   revalidatePath("/cabinet");
-  revalidatePath("/leaderboard");
+  revalidatePublicData();
 }
 
 export async function rejectSubmission(formData: FormData) {
@@ -106,7 +114,7 @@ export async function rejectSubmission(formData: FormData) {
   await reviewSubmission(submissionId, "reject", notes);
   revalidatePath("/admin/submissions");
   revalidatePath("/cabinet");
-  revalidatePath("/leaderboard");
+  revalidatePublicData();
 }
 
 export async function seedDemoData() {
@@ -115,7 +123,7 @@ export async function seedDemoData() {
   await seedDemoScenario();
   revalidatePath("/admin/submissions");
   revalidatePath("/cabinet");
-  revalidatePath("/leaderboard");
+  revalidatePublicData();
 }
 
 export async function logoutAdmin() {

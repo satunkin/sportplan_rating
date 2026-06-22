@@ -1,204 +1,140 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getPublicEventCard } from "@/lib/db";
-import { formatDate } from "@/lib/time";
-import { Discipline } from "@prisma/client";
+import { getPublicCompetition } from "@/lib/cyclon-service";
+import { formatDate, formatDurationFromSeconds } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
-function formatDisciplineLabel(value: Discipline) {
-  if (value === Discipline.RUNNING) return "Бег";
-  if (value === Discipline.CYCLING) return "Велоспорт";
-  if (value === Discipline.SWIMMING) return "Плавание";
-  return "Триатлон";
-}
-
-export default async function EventPage({
+export default async function CompetitionPage({
   params,
 }: {
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const event = await getPublicEventCard(eventId);
+  const competition = await getPublicCompetition(eventId);
 
-  if (!event) {
-    notFound();
-  }
+  if (!competition) notFound();
 
-  const totalParticipants = event.distances.reduce(
-    (sum, distance) => sum + distance.participants.length,
-    0,
-  );
-  const distanceLabels = event.distances
-    .map((distance) => distance.distanceLabel)
-    .join(", ");
+  const externalUrl = competition.isPast
+    ? competition.resultsUrl ??
+      competition.distances.find((distance) => distance.sourceUrl)?.sourceUrl
+    : competition.registrationUrl ?? competition.pageUrl;
 
   return (
-    <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-              Карточка соревнования
+    <main className="page-shell min-h-screen">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
+        <header className="grid gap-5 border-b border-border pb-6 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="text-sm font-semibold text-accent">
+              {competition.isPast ? "Прошедшее соревнование" : "Будущий старт"}
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-accent-strong">
-              {event.name}
+            <h1 className="mt-2 text-4xl font-medium text-foreground">
+              {competition.name}
             </h1>
-            <p className="mt-5 text-base leading-7 text-muted">
-              {formatDate(event.eventDate)} · {formatDisciplineLabel(event.discipline)}
-              {event.location ? ` · ${event.location}` : ""}
+            <p className="mt-3 text-base text-muted">
+              {formatDate(competition.eventDate)} ·{" "}
+              {competition.city ?? "Город уточняется"}
+              {competition.series ? ` · ${competition.series.name}` : ""}
             </p>
-            <p className="mt-3 text-base leading-7 text-muted">
-              Дистанции: {distanceLabels}
-            </p>
-          </article>
+          </div>
+          {externalUrl ? (
+            <a
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-5 text-sm font-semibold text-white"
+              href={externalUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {competition.isPast
+                ? "Открыть официальный протокол"
+                : "Регистрация"}
+            </a>
+          ) : null}
+        </header>
 
-          <article className="rounded-[2rem] bg-accent px-7 py-8 text-white shadow-[0_24px_90px_rgba(19,58,86,0.22)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-              {event.isPast ? "Прошедшее соревнование" : "Будущее соревнование"}
-            </p>
-            <p className="mt-4 text-5xl font-semibold">{event.distances.length}</p>
-            <p className="mt-4 text-sm leading-7 text-white/82">
-              {event.isPast
-                ? `Дистанций в карточке. Участников рейтинга: ${totalParticipants}.`
-                : "Дистанций в карточке. Протокол и участники рейтинга появятся после старта."}
-            </p>
-            {event.isPast && event.sourceUrl ? (
-              <a
-                className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-slate-100"
-                href={event.sourceUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Открыть официальный протокол
-              </a>
-            ) : null}
-          </article>
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-4">
-          <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-4">
-            <p className="text-sm uppercase tracking-[0.18em] text-muted">Тип</p>
-            <p className="mt-2 font-semibold text-accent-strong">
-              {formatDisciplineLabel(event.discipline)}
-            </p>
-          </article>
-          <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-4">
-            <p className="text-sm uppercase tracking-[0.18em] text-muted">
-              Дистанций
-            </p>
-            <p className="mt-2 font-semibold text-accent-strong">
-              {event.distances.length}
-            </p>
-          </article>
-          <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-4">
-            <p className="text-sm uppercase tracking-[0.18em] text-muted">Место</p>
-            <p className="mt-2 font-semibold text-accent-strong">
-              {event.location ?? "Не указано"}
-            </p>
-          </article>
-          <article className="rounded-[1.5rem] border border-border bg-white/70 px-5 py-4">
-            <p className="text-sm uppercase tracking-[0.18em] text-muted">
-              Протокол
-            </p>
-            <p className="mt-2 font-semibold text-accent-strong">
-              {!event.isPast
-                ? "После старта"
-                : event.protocolRowsCount > 0
-                  ? "Загружен"
-                  : "Не загружен"}
-            </p>
-          </article>
-        </section>
-
-        {event.isPast ? (
-          <section className="grid gap-6">
-            {event.distances.map((distance) => (
-              <article
-                className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]"
-                key={distance.id}
-              >
-                <div className="flex flex-col gap-3 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                      {distance.distanceLabel}
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold tracking-tight text-accent-strong">
-                      Участники рейтинга на дистанции
-                    </h2>
-                  </div>
-                  <p className="text-sm leading-6 text-muted">
-                    {distance.participants.length} подтвержденных участников
-                  </p>
-                </div>
-
-                {distance.participants.length === 0 ? (
-                  <div className="mt-6 rounded-[1.5rem] border border-dashed border-border bg-white/70 px-6 py-8 text-sm text-muted">
-                    Для этой дистанции еще нет подтвержденных участников рейтинга.
-                  </div>
-                ) : (
-                  <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-border bg-white/80">
-                    <table className="min-w-full border-collapse text-left">
-                      <thead className="bg-surface-strong">
-                        <tr className="text-sm uppercase tracking-[0.16em] text-muted">
-                          <th className="px-5 py-4">Спортсмен</th>
-                          <th className="px-5 py-4">Результат</th>
-                          <th className="px-5 py-4">Позиция</th>
-                          <th className="px-5 py-4">Очки</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {distance.participants.map((participant) => (
-                          <tr className="border-t border-border" key={participant.id}>
-                            <td className="px-5 py-4">
-                              <Link
-                                className="font-semibold text-accent-strong underline-offset-4 hover:underline"
-                                href={`/athletes/${participant.athleteId}`}
-                              >
-                                {participant.athleteDisplayName}
-                              </Link>
-                            </td>
-                            <td className="px-5 py-4 text-sm text-muted">
-                              {participant.submission.finishTimeRaw}
-                            </td>
-                            <td className="px-5 py-4 text-sm text-muted">
-                              {participant.submission.placementInAgeGroup
-                                ? `${participant.submission.placementInAgeGroup} в группе`
-                                : "—"}
-                              {participant.submission.placementOverall
-                                ? ` · ${participant.submission.placementOverall} абс.`
-                                : ""}
-                            </td>
-                            <td className="px-5 py-4 text-lg font-semibold tabular-nums text-accent-strong">
-                              {participant.awardedPoints}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </article>
-            ))}
-          </section>
-        ) : (
-          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]">
-            <h2 className="text-2xl font-semibold text-accent-strong">
-              Дистанции соревнования
-            </h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {event.distances.map((distance) => (
-                <div
-                  className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 text-sm font-semibold text-accent-strong"
-                  key={distance.id}
-                >
+        <section className="grid gap-5">
+          {competition.distances.map((distance) => (
+            <article className="border border-border bg-white" key={distance.id}>
+              <div className="border-b border-border px-5 py-4">
+                <p className="text-sm text-muted">{distance.discipline}</p>
+                <h2 className="mt-1 text-2xl font-medium text-foreground">
                   {distance.distanceLabel}
+                </h2>
+                {distance.protocolGroups.length ? (
+                  <details className="mt-3 text-sm text-muted">
+                    <summary className="cursor-pointer font-semibold text-accent">
+                      Группы и benchmark пятого места ·{" "}
+                      {distance.protocolGroups.length}
+                    </summary>
+                    <div className="mt-3 max-h-72 overflow-auto border border-border bg-white">
+                      {distance.protocolGroups.map((group) => (
+                        <div
+                          className="grid grid-cols-[minmax(0,1fr)_110px] gap-3 border-b border-border px-3 py-2 last:border-b-0"
+                          key={group.id}
+                        >
+                          <span>{group.label}</span>
+                          <span className="text-right tabular-nums text-foreground">
+                            {group.fifthPlaceTimeSeconds
+                              ? formatDurationFromSeconds(
+                                  group.fifthPlaceTimeSeconds,
+                                )
+                              : "меньше 5"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </div>
+
+              {!competition.isPast ? (
+                <p className="px-5 py-6 text-sm text-muted">
+                  Участники рейтинга и результаты появятся после старта.
+                </p>
+              ) : distance.participants.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted">
+                  На этой дистанции пока нет подтверждённых участников рейтинга.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-left">
+                    <thead className="bg-surface-strong text-xs text-muted">
+                      <tr>
+                        <th className="px-4 py-3">Атлет</th>
+                        <th className="px-4 py-3">Группа</th>
+                        <th className="px-4 py-3">Время</th>
+                        <th className="px-4 py-3">Место</th>
+                        <th className="px-4 py-3">Очки</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {distance.participants.map((participant) => (
+                        <tr className="border-t border-border" key={participant.id}>
+                          <td className="px-4 py-4 font-semibold text-foreground">
+                            {participant.athleteName}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-muted">
+                            {participant.ageGroup}
+                          </td>
+                          <td className="px-4 py-4 text-sm tabular-nums text-muted">
+                            {participant.finishTime}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-muted">
+                            {participant.placementInAgeGroup
+                              ? `${participant.placementInAgeGroup} в группе`
+                              : participant.placementOverall ?? "—"}
+                          </td>
+                          <td className="px-4 py-4 font-semibold tabular-nums text-foreground">
+                            {participant.points}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </div>
-          </article>
-        )}
+              )}
+            </article>
+          ))}
+        </section>
       </section>
     </main>
   );

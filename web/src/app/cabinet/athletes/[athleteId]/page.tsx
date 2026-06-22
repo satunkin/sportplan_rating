@@ -8,10 +8,12 @@ import {
   saveAthleteSubmissionByAdmin,
 } from "@/app/cabinet/actions";
 import { ScoreBreakdown } from "@/components/score-breakdown";
+import { listAdminDirectories } from "@/lib/cyclon-service";
 import { getAdminAthleteDetail } from "@/lib/db";
 import { DISCIPLINE_OPTIONS } from "@/lib/result-submission";
+import { SCORE_RULES } from "@/lib/scoring";
 import { hasAdminSession } from "@/lib/session";
-import { formatDate } from "@/lib/time";
+import { formatDate, formatDurationFromSeconds } from "@/lib/time";
 
 function formatSubmissionDate(date: Date) {
   return `${String(date.getUTCDate()).padStart(2, "0")}.${String(
@@ -25,10 +27,36 @@ function statusLabel(status: string) {
   return "На проверке";
 }
 
+function adminSubmissionErrorMessage(error?: string) {
+  if (error === "submission_invalid") {
+    return "Проверьте обязательные поля и формат времени.";
+  }
+
+  if (error === "scoring_category_required") {
+    return "Не удалось определить категорию рейтинга для расчета очков. Выберите категорию вручную.";
+  }
+
+  if (error === "invalid_fifth_place_time") {
+    return "Время 5-го места должно быть в формате мм:сс или чч:мм:сс.";
+  }
+
+  if (error === "duplicate_submission" || error === "duplicate_verified_submission") {
+    return "Такой результат уже есть у спортсмена в очереди или рейтинге.";
+  }
+
+  if (error === "submission_save_failed") {
+    return "Не удалось сохранить результат. Проверьте данные и попробуйте еще раз.";
+  }
+
+  return null;
+}
+
 export default async function AdminAthletePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ athleteId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const isAdmin = await hasAdminSession();
 
@@ -36,8 +64,12 @@ export default async function AdminAthletePage({
     redirect("/admin/login");
   }
 
-  const { athleteId } = await params;
-  const athlete = await getAdminAthleteDetail(athleteId);
+  const [{ athleteId }, { error }] = await Promise.all([params, searchParams]);
+  const [athlete, directories] = await Promise.all([
+    getAdminAthleteDetail(athleteId),
+    listAdminDirectories(),
+  ]);
+  const submissionError = adminSubmissionErrorMessage(error);
 
   if (!athlete) {
     notFound();
@@ -62,15 +94,18 @@ export default async function AdminAthletePage({
               </p>
             </div>
             <div className="flex gap-3">
-              <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href={`/athletes/${athlete.id}`}>
-                Публичная карточка
-              </Link>
               <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/admin/athletes">
                 К списку участников
               </Link>
             </div>
           </div>
         </article>
+
+        {submissionError ? (
+          <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            {submissionError}
+          </div>
+        ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]">
@@ -91,6 +126,61 @@ export default async function AdminAthletePage({
                   <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" defaultValue={athlete.lastName} name="lastName" required />
                 </label>
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium text-foreground">
+                  Дата рождения
+                  <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" defaultValue={athlete.birthDate.toISOString().slice(0, 10)} name="birthDate" type="date" />
+                </label>
+                <label className="text-sm font-medium text-foreground">
+                  Пол
+                  <select className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" defaultValue={athlete.gender} name="gender">
+                    <option value="MALE">Мужской</option>
+                    <option value="FEMALE">Женский</option>
+                  </select>
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium text-foreground">
+                  Telegram username
+                  <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" defaultValue={athlete.telegramUsername ?? ""} name="telegramUsername" placeholder="@username" />
+                </label>
+                <label className="flex items-center gap-3 rounded-[1.5rem] border border-border bg-white/75 px-4 py-4 text-sm text-foreground">
+                  <input className="h-4 w-4" defaultChecked={athlete.showTelegramProfile} name="showTelegramProfile" type="checkbox" />
+                  Показывать Telegram в рейтинге
+                </label>
+              </div>
+              <fieldset className="border border-border px-4 py-4">
+                <legend className="px-2 text-sm font-semibold text-foreground">Клубы</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {directories.clubs.filter((club) => club.status === "ACTIVE").map((club) => (
+                    <label className="flex items-center gap-2 text-sm text-foreground" key={club.id}>
+                      <input
+                        defaultChecked={athlete.clubs.some((item) => item.clubId === club.id)}
+                        name="clubIds"
+                        type="checkbox"
+                        value={club.id}
+                      />
+                      {club.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="border border-border px-4 py-4">
+                <legend className="px-2 text-sm font-semibold text-foreground">Тренеры</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {directories.coaches.filter((coach) => coach.status === "ACTIVE").map((coach) => (
+                    <label className="flex items-center gap-2 text-sm text-foreground" key={coach.id}>
+                      <input
+                        defaultChecked={athlete.coaches.some((item) => item.coachId === coach.id)}
+                        name="coachIds"
+                        type="checkbox"
+                        value={coach.id}
+                      />
+                      {coach.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">
                   Отчество
@@ -153,6 +243,19 @@ export default async function AdminAthletePage({
               <div className="grid gap-4 md:grid-cols-2">
                 <input className="rounded-2xl border border-border bg-white px-4 py-3" name="placementOverall" placeholder="Место в абсолюте" />
                 <input className="rounded-2xl border border-border bg-white px-4 py-3" name="placementInAgeGroup" placeholder="Место в группе" />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <select className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue="" name="categoryKey">
+                  <option value="">
+                    Категория рейтинга: авто
+                  </option>
+                  {SCORE_RULES.map((rule) => (
+                    <option key={`${rule.discipline}:${rule.categoryKey}`} value={rule.categoryKey}>
+                      {rule.label} · {rule.basePoints} pts
+                    </option>
+                  ))}
+                </select>
+                <input className="rounded-2xl border border-border bg-white px-4 py-3" name="fifthPlaceTime" placeholder="Результат 5 места в группе" />
               </div>
               <input className="rounded-2xl border border-border bg-white px-4 py-3" name="protocolUrl" placeholder="Ссылка на протокол" type="url" />
               <textarea className="min-h-24 rounded-2xl border border-border bg-white px-4 py-3" name="comment" placeholder="Комментарий администратора или спортсмена" />
@@ -226,6 +329,30 @@ export default async function AdminAthletePage({
                   <div className="grid gap-4 md:grid-cols-2">
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.placementOverall ?? ""} name="placementOverall" />
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.placementInAgeGroup ?? ""} name="placementInAgeGroup" />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <select className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.verifiedResult?.scoreRule.categoryKey ?? ""} name="categoryKey">
+                      <option value="">
+                        Категория рейтинга: авто
+                      </option>
+                      {SCORE_RULES.map((rule) => (
+                        <option key={`${submission.id}:${rule.discipline}:${rule.categoryKey}`} value={rule.categoryKey}>
+                          {rule.label} · {rule.basePoints} pts
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="rounded-2xl border border-border bg-white px-4 py-3"
+                      defaultValue={
+                        submission.verifiedResult
+                          ? formatDurationFromSeconds(
+                              submission.verifiedResult.fifthPlaceTimeSeconds,
+                            )
+                          : ""
+                      }
+                      name="fifthPlaceTime"
+                      placeholder="Результат 5 места в группе"
+                    />
                   </div>
                   <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.protocolUrl ?? ""} name="protocolUrl" type="url" />
                   <textarea className="min-h-24 rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.comment ?? ""} name="comment" />

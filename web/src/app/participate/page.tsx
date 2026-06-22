@@ -20,6 +20,8 @@ const steps = [
 ];
 
 export default function ParticipatePage() {
+  const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL?.trim();
+
   return (
     <main className="page-shell min-h-screen">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
@@ -40,12 +42,22 @@ export default function ParticipatePage() {
           <div className="border border-border bg-white px-5 py-5">
             <p className="text-sm text-muted">Статус бота</p>
             <p className="mt-2 text-xl font-semibold text-foreground">
-              Будет подключен отдельным этапом
+              Основной интерфейс спортсмена
             </p>
             <p className="mt-3 text-sm leading-6 text-muted">
-              До подключения Telegram-бота администратор может вносить и
-              проверять данные через админ-панель.
+              Регистрация, результаты, исправления и просмотр своего места
+              работают через Telegram.
             </p>
+            {botUrl ? (
+              <a
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-semibold text-white"
+                href={botUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Открыть Telegram-бота
+              </a>
+            ) : null}
           </div>
         </div>
 
@@ -82,8 +94,8 @@ export default function ParticipatePage() {
               Где смотреть результат
             </h2>
             <p className="mt-4 text-sm leading-6 text-muted">
-              После проверки результат появится в полном рейтинге, в карточке
-              спортсмена и в карточке соревнования. Итоговое место сезона
+              После проверки результат появится в полном рейтинге и в карточке
+              соревнования. Итоговое место сезона
               обновляется автоматически после подтверждения.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">

@@ -54,3 +54,11 @@ export function getSessionSecret() {
 
   throw new Error("SESSION_SECRET must be set in production.");
 }
+
+export function getTelegramBotToken() {
+  return process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "";
+}
+
+export function getTelegramWebhookSecret() {
+  return process.env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
+}

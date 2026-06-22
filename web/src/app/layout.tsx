@@ -5,8 +5,9 @@ import { SiteHeader } from "@/app/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SportPlan rating",
-  description: "Seasonal rating for amateur endurance athletes.",
+  title: "Кубок Циклон · 2026",
+  description:
+    "Рейтинг Кубка Циклон 2026 на основе подтверждённых результатов соревнований.",
 };
 
 export default function RootLayout({

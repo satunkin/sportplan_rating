@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { Discipline } from "@prisma/client";
+import { Discipline, Gender } from "@prisma/client";
 
 import { validateAthleteProfile, type AthleteGender } from "@/lib/athlete-profile";
 import {
@@ -30,8 +30,10 @@ import {
   getAthleteUserSession,
   hasAdminSession,
 } from "@/lib/session";
+import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
 
 function revalidateAppShell() {
+  revalidateTag(PUBLIC_DATA_CACHE_TAG, "max");
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/admin/events");
@@ -46,6 +48,30 @@ async function requireAdminSession() {
   if (!(await hasAdminSession())) {
     redirect("/admin/login");
   }
+}
+
+function getAdminSubmissionErrorCode(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "submission_save_failed";
+  }
+
+  if (error.message === "DUPLICATE_SUBMISSION") {
+    return "duplicate_submission";
+  }
+
+  if (error.message === "DUPLICATE_VERIFIED_SUBMISSION") {
+    return "duplicate_verified_submission";
+  }
+
+  if (error.message === "SCORING_CATEGORY_REQUIRED" || error.message === "SCORE_RULE_NOT_FOUND") {
+    return "scoring_category_required";
+  }
+
+  if (error.message === "INVALID_FIFTH_PLACE_TIME") {
+    return "invalid_fifth_place_time";
+  }
+
+  return "submission_save_failed";
 }
 
 export async function logoutAthlete() {
@@ -104,8 +130,10 @@ export async function saveAthleteSubmissionEdit(formData: FormData) {
     eventDate: String(formData.get("eventDate") ?? ""),
     discipline: String(formData.get("discipline") ?? "") as DisciplineValue,
     distanceLabel: String(formData.get("distanceLabel") ?? ""),
+    categoryKey: String(formData.get("categoryKey") ?? ""),
     ageGroupClaimed: String(formData.get("ageGroupClaimed") ?? ""),
     finishTime: String(formData.get("finishTime") ?? ""),
+    fifthPlaceTime: String(formData.get("fifthPlaceTime") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
     placementOverall: String(formData.get("placementOverall") ?? ""),
     placementInAgeGroup: String(formData.get("placementInAgeGroup") ?? ""),
@@ -229,6 +257,16 @@ export async function saveAthleteByAdmin(formData: FormData) {
     seasonAgeGroup: String(formData.get("seasonAgeGroup") ?? ""),
     publicDisplayName: String(formData.get("publicDisplayName") ?? ""),
     showPublicResults: String(formData.get("showPublicResults") ?? "") === "on",
+    birthDate: String(formData.get("birthDate") ?? ""),
+    gender:
+      String(formData.get("gender") ?? "") === "FEMALE"
+        ? Gender.FEMALE
+        : Gender.MALE,
+    telegramUsername: String(formData.get("telegramUsername") ?? ""),
+    showTelegramProfile:
+      String(formData.get("showTelegramProfile") ?? "") === "on",
+    clubIds: formData.getAll("clubIds").map(String),
+    coachIds: formData.getAll("coachIds").map(String),
   });
 
   revalidateAppShell();
@@ -256,7 +294,12 @@ export async function addAthleteSubmissionByAdmin(formData: FormData) {
     redirect(`/admin/athletes/${athleteId}?error=submission_invalid`);
   }
 
-  await createSubmissionByAdmin(athleteId, validation.data);
+  try {
+    await createSubmissionByAdmin(athleteId, validation.data);
+  } catch (error) {
+    redirect(`/admin/athletes/${athleteId}?error=${getAdminSubmissionErrorCode(error)}`);
+  }
+
   revalidateAppShell();
   redirect(`/admin/athletes/${athleteId}`);
 }
@@ -271,8 +314,10 @@ export async function saveAthleteSubmissionByAdmin(formData: FormData) {
     eventDate: String(formData.get("eventDate") ?? ""),
     discipline: String(formData.get("discipline") ?? "") as DisciplineValue,
     distanceLabel: String(formData.get("distanceLabel") ?? ""),
+    categoryKey: String(formData.get("categoryKey") ?? ""),
     ageGroupClaimed: String(formData.get("ageGroupClaimed") ?? ""),
     finishTime: String(formData.get("finishTime") ?? ""),
+    fifthPlaceTime: String(formData.get("fifthPlaceTime") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
     placementOverall: String(formData.get("placementOverall") ?? ""),
     placementInAgeGroup: String(formData.get("placementInAgeGroup") ?? ""),
@@ -283,7 +328,12 @@ export async function saveAthleteSubmissionByAdmin(formData: FormData) {
     redirect(`/admin/athletes/${athleteId}?error=submission_invalid`);
   }
 
-  await updateSubmissionByAdmin(submissionId, validation.data);
+  try {
+    await updateSubmissionByAdmin(submissionId, validation.data);
+  } catch (error) {
+    redirect(`/admin/athletes/${athleteId}?error=${getAdminSubmissionErrorCode(error)}`);
+  }
+
   revalidateAppShell();
   redirect(`/admin/athletes/${athleteId}`);
 }

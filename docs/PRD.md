@@ -1,5 +1,10 @@
 # Cyclon Rating PRD
 
+> Current implementation note (2026-06-20): the active name is
+> **Кубок Циклон · 2026**. Telegram is the primary athlete interface; the
+> website is the public rating/competition surface, and the admin panel owns
+> moderation and reference data.
+
 Version: `v1.0`
 Date: `2026-05-12`
 Status: `Draft for implementation`

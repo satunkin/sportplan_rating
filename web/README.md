@@ -1,10 +1,11 @@
-## Cyclon Rating Web
+## Кубок Циклон · 2026
 
 Current local runtime:
 - `Next.js app router`
 - `Prisma client`
 - local / hosted DB: `PostgreSQL`
 - schema management: `Prisma migrations`
+- athlete interface: `Telegram webhook bot`
 
 The app runtime is now PostgreSQL-first. `DATABASE_URL` can point directly to a hosted Postgres instance, and `DATABASE_URL_POSTGRES` remains as a convenient fallback while the final env layout is being stabilized.
 
@@ -22,6 +23,16 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+Main product routes:
+- `/` — top-10 male and female rating with expandable history;
+- `/leaderboard` — full rating with search, filters and pagination;
+- `/events` — future and past competitions;
+- `/admin` — competitions, athletes, moderation and directories;
+- `/api/telegram/webhook` — Telegram webhook.
+
+`Competition` is the parent event entity. The existing Prisma `Event` model is
+kept as the compatible physical model for one competition distance.
 
 The `.env.example` file now contains:
 - a slot for `DATABASE_URL_POSTGRES` using Supabase session or direct connection;
@@ -68,6 +79,7 @@ npm run prisma:validate:postgres
 npm run db:baseline:postgres
 npm run db:smoke:postgres
 npm run db:seed:demo
+npm run db:check:cyclon-migration
 ```
 
 What these PostgreSQL commands do:
@@ -76,8 +88,34 @@ What these PostgreSQL commands do:
 - run a minimal PostgreSQL runtime smoke check with `@prisma/adapter-pg`;
 - seed or refresh the demo snapshot in a non-destructive way.
 
+If Prisma migrate cannot work through a Supabase session pooler, the project has
+a transaction-safe fallback for the single Cyclon migration:
+
+```bash
+npm run db:apply:cyclon-migration
+```
+
+## Telegram Bot
+
+Required variables:
+- `TELEGRAM_BOT_TOKEN`;
+- `TELEGRAM_WEBHOOK_SECRET`;
+- `NEXT_PUBLIC_TELEGRAM_BOT_URL`;
+- public `APP_BASE_URL`.
+
+After deployment, register the webhook:
+
+```bash
+npm run telegram:set-webhook
+```
+
+The bot supports onboarding, safe linking to an existing athlete, result
+submission, proposed competitions/clubs/coaches, profile editing, personal
+rating and moderated update/delete requests. `TelegramUpdate` protects webhook
+processing from repeated Telegram delivery.
+
 Current limitation:
-- production email delivery still requires a real SMTP provider;
+- the legacy athlete magic-link login requires a real SMTP provider;
 - hosted deploy still needs final production env values and a full browser-level smoke test;
 - demo seed is idempotent for the current fixture set, but it does not intentionally remove obsolete demo rows if the fixture list changes later.
 
@@ -93,6 +131,9 @@ Current limitation:
 - `ADMIN_PASSWORD_HASH`: scrypt hash in `salt:hash` format for admin password verification.
 - `ADMIN_ACCESS_KEY`: temporary fallback passphrase for local/dev access when stronger admin credentials are not configured.
 - `SESSION_SECRET`: cookie signing secret.
+- `TELEGRAM_BOT_TOKEN`: server-only BotFather token.
+- `TELEGRAM_WEBHOOK_SECRET`: secret Telegram webhook header.
+- `NEXT_PUBLIC_TELEGRAM_BOT_URL`: public `https://t.me/...` bot link.
 
 ## Next Infra Goal
 
@@ -101,9 +142,9 @@ Finish the hosted production path around the new PostgreSQL runtime: SMTP, deplo
 ## Hosted Deployment
 
 Recommended default:
-- `Vercel` for the Next.js app
-- `PostgreSQL` for the hosted database
-- any SMTP provider for magic-link delivery
+- `Netlify` for the Next.js app and Telegram webhook
+- `Supabase PostgreSQL` for the hosted database
+- SMTP is optional while Telegram is the primary athlete interface
 
 Before the first hosted deploy:
 
@@ -116,11 +157,12 @@ What `npm run deploy:check` now validates:
 - `DIRECT_URL` should point to a direct PostgreSQL connection for Prisma CLI
 - `APP_BASE_URL` must point to the public website URL
 - `SESSION_SECRET` must be set
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM` must be configured
+- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` must be configured
+- SMTP is optional; without it, the legacy athlete magic-link login is unavailable
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` should be configured
 - the PostgreSQL server must be reachable with the runtime URL
 - the core Prisma-managed tables must already exist
-- the SMTP server must accept a verification handshake
+- when SMTP is configured, the SMTP server must accept a verification handshake
 
 Health endpoint:
 
@@ -132,11 +174,15 @@ It returns:
 - `200` when the current runtime looks deployment-ready
 - `503` when blockers still exist, with a JSON list of blockers and warnings
 
-Practical Vercel path:
-1. Create a PostgreSQL database.
-2. Put its connection string into `DATABASE_URL`.
-3. Configure SMTP and `APP_BASE_URL`.
-4. Add all env vars in the Vercel project settings.
-5. Run `npm run deploy:check` locally with those envs.
-6. Deploy the `web` app to Vercel.
-7. Open `/api/health` on the deployed URL and confirm `status: "ok"`.
+Practical Netlify path:
+1. Connect the GitHub repository `satunkin/sportplan_rating` to Netlify.
+2. Netlify reads the root `netlify.toml`, installs dependencies in `web`, and runs `npm run build`.
+3. Add the production variables from `.env.example` in Netlify project settings. Never commit real secrets.
+4. Use the Supabase transaction pooler URL for `DATABASE_URL`.
+5. Set `APP_BASE_URL=https://plansporta.ru`.
+6. Deploy first to the Netlify preview domain and open `/api/health`.
+7. After the preview passes, attach `plansporta.ru` and `www.plansporta.ru`.
+8. Register Telegram webhook with `npm run telegram:set-webhook`.
+
+Netlify automatically provisions serverless functions for Next.js route handlers,
+including `/api/telegram/webhook`. No separate bot server is required.

@@ -54,6 +54,44 @@ enum ReviewDecision {
   NEEDS_INFO
 }
 
+enum EntityStatus {
+  PENDING
+  ACTIVE
+  ARCHIVED
+}
+
+enum SubmissionType {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum BenchmarkSource {
+  PROTOCOL
+  ADMIN
+  ATHLETE_HINT
+}
+
+enum ProposalType {
+  COMPETITION
+  CLUB
+  COACH
+  ATHLETE_LINK
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+enum TelegramDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
   id              String              @id @default(cuid())
   email           String?             @unique
@@ -64,6 +102,9 @@ model User {
   reviews         ManualReview[]
   auditLogs       AuditLog[]
   magicLinkTokens MagicLinkToken[]
+  proposals       EntityProposal[]    @relation("ProposalAuthor")
+  reviewedProposals EntityProposal[]  @relation("ProposalReviewer")
+  telegramConversations TelegramConversation[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 }
@@ -76,16 +117,24 @@ model Athlete {
   middleName       String?
   publicDisplayName String?
   showPublicResults Boolean           @default(false)
+  telegramUsername String?
+  showTelegramProfile Boolean         @default(false)
   birthDate        DateTime
   gender           Gender
   city             String?
   seasonAgeGroup   String?
+  status           EntityStatus       @default(ACTIVE)
+  archivedAt       DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   submissions      ResultSubmission[]
   verifiedResults  VerifiedResult[]
   rankingEntries   RankingEntry[]
+  clubs            AthleteClub[]
+  coaches          AthleteCoach[]
+  telegramLinkRequests AthleteLinkRequest[] @relation("RequestedAthlete")
+  candidateLinkRequests AthleteLinkRequest[] @relation("CandidateAthlete")
 }
 
 model Season {
@@ -119,8 +168,40 @@ model EventCategory {
   @@unique([discipline, categoryKey])
 }
 
+model Series {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  websiteUrl   String?
+  status       EntityStatus  @default(ACTIVE)
+  archivedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  competitions Competition[]
+}
+
+model Competition {
+  id              String        @id @default(cuid())
+  name            String
+  eventDate       DateTime
+  city            String?
+  pageUrl         String?
+  registrationUrl String?
+  resultsUrl      String?
+  seriesId        String?
+  status          EntityStatus  @default(ACTIVE)
+  archivedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  series          Series?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  distances       Event[]
+
+  @@index([eventDate, status])
+  @@index([seriesId])
+}
+
 model Event {
   id              String             @id @default(cuid())
+  competitionId   String?
   name            String
   eventDate       DateTime
   discipline      Discipline
@@ -128,14 +209,19 @@ model Event {
   sourceUrl       String?
   location        String?
   categoryId      String?
+  status          EntityStatus       @default(ACTIVE)
+  archivedAt      DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+  competition     Competition?       @relation(fields: [competitionId], references: [id], onDelete: SetNull)
   category        EventCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   protocolRows    EventProtocolRow[]
+  protocolGroups  ProtocolGroup[]
   submissions     ResultSubmission[]
   verifiedResults VerifiedResult[]
 
   @@index([eventDate, discipline])
+  @@index([competitionId])
 }
 
 model EventProtocolRow {
@@ -153,11 +239,32 @@ model EventProtocolRow {
   event               Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
+model ProtocolGroup {
+  id                    String          @id @default(cuid())
+  eventId               String
+  groupKey              String
+  label                 String
+  gender                Gender?
+  minAge                Int?
+  maxAge                Int?
+  fifthPlaceTimeSeconds Int?
+  benchmarkSource       BenchmarkSource?
+  benchmarkNotes        String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  event                 Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupKey])
+  @@index([eventId])
+}
+
 model ResultSubmission {
   id                String           @id @default(cuid())
   athleteId         String
   seasonId          String
   eventId           String?
+  submissionType    SubmissionType   @default(CREATE)
+  targetVerifiedResultId String?
   eventNameRaw      String
   eventDate         DateTime
   discipline        Discipline
@@ -165,6 +272,7 @@ model ResultSubmission {
   ageGroupClaimed   String
   finishTimeRaw     String
   finishTimeSeconds Int
+  proposedFifthPlaceTimeSeconds Int?
   protocolUrl       String?
   placementOverall  Int?
   placementInAgeGroup Int?
@@ -178,9 +286,11 @@ model ResultSubmission {
   season            Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   event             Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
   verifiedResult    VerifiedResult?
+  targetVerifiedResult VerifiedResult? @relation("TargetVerifiedResult", fields: [targetVerifiedResultId], references: [id], onDelete: SetNull)
   reviews           ManualReview[]
 
   @@index([athleteId, seasonId, status])
+  @@index([targetVerifiedResultId])
 }
 
 model VerifiedResult {
@@ -196,6 +306,8 @@ model VerifiedResult {
   awardedPoints        Int
   verificationMode     VerificationMode
   scoreRuleId          String
+  status               EntityStatus     @default(ACTIVE)
+  archivedAt           DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   athlete              Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
@@ -204,6 +316,128 @@ model VerifiedResult {
   event                Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventCategory        EventCategory?   @relation(fields: [eventCategoryId], references: [id], onDelete: SetNull)
   scoreRule            ScoreRule        @relation(fields: [scoreRuleId], references: [id], onDelete: Restrict)
+  changeRequests       ResultSubmission[] @relation("TargetVerifiedResult")
+}
+
+model Club {
+  id           String        @id @default(cuid())
+  name         String
+  websiteUrl   String?
+  status       EntityStatus  @default(ACTIVE)
+  mergedIntoId String?
+  archivedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  athletes     AthleteClub[]
+
+  @@unique([name])
+  @@index([status])
+}
+
+model Coach {
+  id           String        @id @default(cuid())
+  name         String
+  websiteUrl   String?
+  status       EntityStatus  @default(ACTIVE)
+  mergedIntoId String?
+  archivedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  athletes     AthleteCoach[]
+
+  @@unique([name])
+  @@index([status])
+}
+
+model AthleteClub {
+  athleteId String
+  clubId    String
+  createdAt DateTime @default(now())
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([athleteId, clubId])
+  @@index([clubId])
+}
+
+model AthleteCoach {
+  athleteId String
+  coachId   String
+  createdAt DateTime @default(now())
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  coach     Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@id([athleteId, coachId])
+  @@index([coachId])
+}
+
+model EntityProposal {
+  id             String         @id @default(cuid())
+  type           ProposalType
+  status         ProposalStatus @default(PENDING)
+  proposerUserId String?
+  reviewerUserId String?
+  targetEntityId String?
+  payloadJson    Json
+  reviewNotes    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  proposer       User?          @relation("ProposalAuthor", fields: [proposerUserId], references: [id], onDelete: SetNull)
+  reviewer       User?          @relation("ProposalReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+
+  @@index([type, status])
+}
+
+model AthleteLinkRequest {
+  id                 String         @id @default(cuid())
+  telegramId         String
+  telegramUsername   String?
+  requestedAthleteId String?
+  candidateAthleteId String?
+  profileJson        Json
+  status             ProposalStatus @default(PENDING)
+  reviewNotes        String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  requestedAthlete   Athlete?       @relation("RequestedAthlete", fields: [requestedAthleteId], references: [id], onDelete: SetNull)
+  candidateAthlete   Athlete?       @relation("CandidateAthlete", fields: [candidateAthleteId], references: [id], onDelete: SetNull)
+
+  @@index([telegramId, status])
+}
+
+model TelegramConversation {
+  id         String   @id @default(cuid())
+  telegramId String   @unique
+  chatId     String
+  userId     String?
+  state      String
+  dataJson   Json?
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model TelegramUpdate {
+  id         String   @id @default(cuid())
+  updateId   String   @unique
+  receivedAt DateTime @default(now())
+  handledAt  DateTime?
+}
+
+model TelegramNotification {
+  id          String                 @id @default(cuid())
+  telegramId  String
+  chatId      String
+  text        String
+  status      TelegramDeliveryStatus @default(PENDING)
+  attempts    Int                    @default(0)
+  lastError   String?
+  sentAt      DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([status, createdAt])
 }
 
 model ScoreRule {

@@ -1,4 +1,5 @@
 import {
+  EntityStatus,
   Discipline,
   Gender,
   Prisma,
@@ -6,8 +7,10 @@ import {
   VerificationMode,
   SeasonStatus,
   SubmissionStatus,
+  SubmissionType,
   UserRole,
 } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 
 import type { AthleteProfile } from "@/lib/athlete-profile";
 import { ensureDatabaseReady } from "@/lib/db-bootstrap";
@@ -19,6 +22,10 @@ import {
 import { createPasswordHash, verifyPasswordHash } from "@/lib/password-auth";
 import type { ResultSubmissionInput } from "@/lib/result-submission";
 import { prisma } from "@/lib/prisma";
+import {
+  PUBLIC_DATA_CACHE_TAG,
+  PUBLIC_DATA_REVALIDATE_SECONDS,
+} from "@/lib/public-cache";
 import { importProtocolForEvent } from "@/lib/protocol-import/import-source-protocol";
 import {
   calculateLagPercent,
@@ -27,6 +34,7 @@ import {
   SCORE_RULES,
 } from "@/lib/scoring";
 import { parseTimeToSeconds } from "@/lib/time";
+import { notifyAthleteById } from "@/lib/telegram/notifications";
 
 const CURRENT_SEASON_YEAR = new Date().getFullYear();
 const DEMO_ATHLETE_PASSWORD = "demo-athlete-password";
@@ -492,8 +500,70 @@ async function findEventByFingerprint(fingerprint: EventFingerprint) {
     },
     include: {
       category: true,
+      competition: true,
+      protocolGroups: true,
     },
   });
+}
+
+function normalizeCategoryMatchValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ");
+}
+
+function normalizeCompactCategoryMatchValue(value: string) {
+  return normalizeCategoryMatchValue(value).replace(/[\s._-]+/g, "");
+}
+
+function inferCategoryKeyFromDistanceLabel(
+  discipline: Discipline,
+  distanceLabel: string,
+) {
+  const normalizedDistance = normalizeCategoryMatchValue(distanceLabel);
+  const compactDistance = normalizeCompactCategoryMatchValue(distanceLabel);
+
+  return SCORE_RULES.find((rule) => {
+    if (rule.discipline !== discipline) {
+      return false;
+    }
+
+    return (
+      normalizeCategoryMatchValue(rule.label) === normalizedDistance ||
+      normalizeCompactCategoryMatchValue(rule.label) === compactDistance ||
+      normalizeCategoryMatchValue(rule.categoryKey) === normalizedDistance ||
+      normalizeCompactCategoryMatchValue(rule.categoryKey) === compactDistance
+    );
+  })?.categoryKey;
+}
+
+async function resolveAdminScoringCategoryKey(
+  input: ResultSubmissionInput,
+  fallbackCategoryKey?: string | null,
+) {
+  if (input.categoryKey?.trim()) {
+    return input.categoryKey.trim();
+  }
+
+  const eventDate = new Date(input.eventDate);
+  const matchedEvent = await findEventByFingerprint({
+    eventName: input.eventName,
+    eventDate,
+    discipline: input.discipline as Discipline,
+    distanceLabel: input.distanceLabel,
+  });
+
+  return (
+    matchedEvent?.category?.categoryKey ??
+    inferCategoryKeyFromDistanceLabel(
+      input.discipline as Discipline,
+      input.distanceLabel,
+    ) ??
+    fallbackCategoryKey ??
+    null
+  );
 }
 
 async function ensureEventForSubmission(params: {
@@ -526,8 +596,18 @@ async function ensureEventForSubmission(params: {
     });
   }
 
+  const competition = await prisma.competition.create({
+    data: {
+      name: params.eventName,
+      eventDate: params.eventDate,
+      city: normalizedLocation,
+      resultsUrl: normalizedSourceUrl,
+    },
+  });
+
   return prisma.event.create({
     data: {
+      competitionId: competition.id,
       name: params.eventName,
       eventDate: params.eventDate,
       discipline: params.discipline,
@@ -939,13 +1019,23 @@ export async function listPendingSubmissions() {
       relatedSubmissions: relatedSubmissions[index],
       matchedEventCategoryLabel: eventMatches[index]?.category?.label ?? null,
       matchedEventCategoryKey: eventMatches[index]?.category?.categoryKey ?? null,
+      suggestedFifthPlaceTimeSeconds:
+        eventMatches[index]?.protocolGroups.find(
+          (group) =>
+            group.groupKey === submission.ageGroupClaimed ||
+            group.label === submission.ageGroupClaimed,
+        )?.fifthPlaceTimeSeconds ?? null,
     },
   }));
 }
 
 async function recalculateSeasonRanking(seasonId: string) {
   const verified = await prisma.verifiedResult.findMany({
-    where: { seasonId },
+    where: {
+      seasonId,
+      status: EntityStatus.ACTIVE,
+      athlete: { status: EntityStatus.ACTIVE },
+    },
     include: {
       athlete: true,
     },
@@ -1079,7 +1169,10 @@ export async function reviewSubmission(
     throw new Error("SUBMISSION_NOT_FOUND");
   }
 
-  if (decision === "approve") {
+  if (
+    decision === "approve" &&
+    submissionBefore.submissionType === SubmissionType.CREATE
+  ) {
     const existingVerifiedDuplicate = await findDuplicateSubmission({
       athleteId: submissionBefore.athleteId,
       seasonId: submissionBefore.seasonId,
@@ -1108,13 +1201,31 @@ export async function reviewSubmission(
       }
     | undefined;
 
-  if (decision === "approve") {
-    if (!scoringInput?.categoryKey || !scoringInput.fifthPlaceTime) {
+  if (
+    decision === "approve" &&
+    submissionBefore.submissionType !== SubmissionType.DELETE
+  ) {
+    const matchedEvent = await findEventByFingerprint({
+      eventName: submissionBefore.eventNameRaw,
+      eventDate: submissionBefore.eventDate,
+      discipline: submissionBefore.discipline,
+      distanceLabel: submissionBefore.distanceLabel,
+    });
+    const protocolBenchmark = matchedEvent?.protocolGroups.find(
+      (group) =>
+        group.groupKey === submissionBefore.ageGroupClaimed ||
+        group.label === submissionBefore.ageGroupClaimed,
+    )?.fifthPlaceTimeSeconds;
+    const benchmarkInput =
+      scoringInput?.fifthPlaceTime ||
+      (protocolBenchmark ? String(protocolBenchmark) : "");
+
+    if (!scoringInput?.categoryKey || !benchmarkInput) {
       throw new Error("SCORING_INPUT_REQUIRED");
     }
 
     const requiresManualReason =
-      !submissionBefore.protocolUrl ||
+      !(submissionBefore.protocolUrl || matchedEvent?.sourceUrl) ||
       scoringInput.moderationFlags?.confirmNoPublicProtocol ||
       scoringInput.moderationFlags?.confirmMergedAgeGroups ||
       scoringInput.moderationFlags?.confirmLessThanFiveFinishers;
@@ -1123,7 +1234,9 @@ export async function reviewSubmission(
       throw new Error("MANUAL_REVIEW_REASON_REQUIRED");
     }
 
-    const fifthPlaceTimeSeconds = parseTimeToSeconds(scoringInput.fifthPlaceTime);
+    const fifthPlaceTimeSeconds = protocolBenchmark
+      ? protocolBenchmark
+      : parseTimeToSeconds(benchmarkInput);
 
     if (fifthPlaceTimeSeconds === null) {
       throw new Error("INVALID_FIFTH_PLACE_TIME");
@@ -1197,7 +1310,23 @@ export async function reviewSubmission(
     },
   });
 
-  if (decision === "approve") {
+  if (
+    decision === "approve" &&
+    submission.submissionType === SubmissionType.DELETE
+  ) {
+    if (!submission.targetVerifiedResultId) {
+      throw new Error("TARGET_VERIFIED_RESULT_REQUIRED");
+    }
+
+    await prisma.verifiedResult.update({
+      where: { id: submission.targetVerifiedResultId },
+      data: {
+        status: EntityStatus.ARCHIVED,
+        archivedAt: new Date(),
+      },
+    });
+    await recalculateSeasonRanking(submission.seasonId);
+  } else if (decision === "approve") {
     if (!preparedApproval) {
       throw new Error("APPROVAL_NOT_PREPARED");
     }
@@ -1219,6 +1348,19 @@ export async function reviewSubmission(
       },
     });
 
+    if (
+      submission.submissionType === SubmissionType.UPDATE &&
+      submission.targetVerifiedResultId
+    ) {
+      await prisma.verifiedResult.update({
+        where: { id: submission.targetVerifiedResultId },
+        data: {
+          status: EntityStatus.ARCHIVED,
+          archivedAt: new Date(),
+        },
+      });
+    }
+
     await prisma.verifiedResult.upsert({
       where: {
         submissionId: submission.id,
@@ -1232,6 +1374,8 @@ export async function reviewSubmission(
         awardedPoints: preparedApproval.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: preparedApproval.scoreRule!.id,
+        status: EntityStatus.ACTIVE,
+        archivedAt: null,
       },
       create: {
         athleteId: submission.athleteId,
@@ -1245,6 +1389,7 @@ export async function reviewSubmission(
         awardedPoints: preparedApproval.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: preparedApproval.scoreRule!.id,
+        status: EntityStatus.ACTIVE,
       },
     });
 
@@ -1275,6 +1420,17 @@ export async function reviewSubmission(
       },
     },
   });
+
+  await notifyAthleteById(
+    submission.athleteId,
+    decision === "approve"
+      ? submission.submissionType === SubmissionType.DELETE
+        ? "Ваш запрос на удаление результата подтверждён. Рейтинг пересчитан."
+        : submission.submissionType === SubmissionType.UPDATE
+          ? "Изменение результата подтверждено. Рейтинг пересчитан."
+          : "Результат подтверждён и добавлен в рейтинг."
+      : "Заявка отклонена администратором. Подробности доступны в разделе «Мои результаты».",
+  );
 
   return submission;
 }
@@ -1371,41 +1527,52 @@ function applyDisplayRanks<
   });
 }
 
+const getCachedLeaderboardSnapshot = unstable_cache(
+  async () => {
+    await ensureDatabaseReady();
+
+    const season = await findCurrentSeason();
+
+    if (!season) {
+      return [];
+    }
+
+    return prisma.rankingEntry.findMany({
+      where: {
+        seasonId: season.id,
+      },
+      include: {
+        athlete: {
+          include: {
+            verifiedResults: {
+              where: { seasonId: season.id },
+              orderBy: { awardedPoints: "desc" },
+              take: 3,
+              include: {
+                submission: true,
+                scoreRule: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { rank: "asc" },
+    });
+  },
+  ["public-leaderboard-snapshot-v1"],
+  {
+    revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+    tags: [PUBLIC_DATA_CACHE_TAG],
+  },
+);
+
 export async function listLeaderboard(filters?: {
   discipline?: string;
   ageGroup?: string;
   gender?: string;
 }) {
   await ensureDatabaseReady();
-
-  const season = await findCurrentSeason();
-
-  if (!season) {
-    return [];
-  }
-
-  const entries = await prisma.rankingEntry.findMany({
-    where: {
-      seasonId: season.id,
-    },
-    include: {
-      athlete: {
-        include: {
-          user: true,
-          verifiedResults: {
-            where: { seasonId: season.id },
-            orderBy: { awardedPoints: "desc" },
-            take: 3,
-            include: {
-              submission: true,
-              scoreRule: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: { rank: "asc" },
-  });
+  const entries = await getCachedLeaderboardSnapshot();
 
   const genderFilteredEntries = entries.filter((entry) => {
     if (!filters?.gender || filters.gender === "all") {
@@ -1445,32 +1612,7 @@ export function getCategoryOptionsForDiscipline(discipline: Discipline) {
 
 export async function getLeaderboardFilterOptions() {
   await ensureDatabaseReady();
-
-  const season = await findCurrentSeason();
-
-  if (!season) {
-    return {
-      ageGroups: [],
-      disciplines: Object.values(Discipline),
-      genders: [
-        { value: "male", label: "Мужчины" },
-        { value: "female", label: "Женщины" },
-      ],
-    };
-  }
-
-  const entries = await prisma.rankingEntry.findMany({
-    where: {
-      seasonId: season.id,
-    },
-    select: {
-      athlete: {
-        select: {
-          seasonAgeGroup: true,
-        },
-      },
-    },
-  });
+  const entries = await getCachedLeaderboardSnapshot();
 
   const ageGroups = Array.from(
     new Set(
@@ -1490,7 +1632,7 @@ export async function getLeaderboardFilterOptions() {
   };
 }
 
-export async function getPublicAthleteProfile(athleteId: string) {
+async function loadPublicAthleteProfile(athleteId: string) {
   await ensureDatabaseReady();
 
   const season = await findCurrentSeason();
@@ -1554,6 +1696,17 @@ export async function getPublicAthleteProfile(athleteId: string) {
     updatedAt: new Date(),
     athlete,
   };
+}
+
+export async function getPublicAthleteProfile(athleteId: string) {
+  return unstable_cache(
+    () => loadPublicAthleteProfile(athleteId),
+    ["public-athlete-profile-v1", athleteId],
+    {
+      revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+      tags: [PUBLIC_DATA_CACHE_TAG],
+    },
+  )();
 }
 
 export async function seedDemoScenario() {
@@ -1745,6 +1898,15 @@ async function resetSubmissionToReview(
   seasonId: string,
   input: ResultSubmissionInput,
 ) {
+  const current = await prisma.resultSubmission.findUnique({
+    where: { id: submissionId },
+    include: { verifiedResult: true },
+  });
+
+  if (!current || current.athleteId !== athleteId) {
+    throw new Error("SUBMISSION_NOT_FOUND");
+  }
+
   const eventDate = new Date(input.eventDate);
   const finishTimeSeconds = parseTimeToSeconds(input.finishTime);
 
@@ -1761,20 +1923,20 @@ async function resetSubmissionToReview(
     distanceLabel: input.distanceLabel,
     finishTimeSeconds,
     excludeSubmissionId: submissionId,
-    statuses: [
-      SubmissionStatus.PENDING_MANUAL_REVIEW,
-      SubmissionStatus.VERIFIED,
-    ],
+    statuses: current.verifiedResult
+      ? [SubmissionStatus.PENDING_MANUAL_REVIEW]
+      : [
+          SubmissionStatus.PENDING_MANUAL_REVIEW,
+          SubmissionStatus.VERIFIED,
+        ],
   });
 
   if (existingDuplicate) {
     throw new Error("DUPLICATE_SUBMISSION");
   }
 
-  await prisma.resultSubmission.update({
-    where: { id: submissionId },
-    data: {
-      eventId: null,
+  const commonData = {
+      eventId: current.eventId,
       eventNameRaw: input.eventName,
       eventDate,
       discipline: input.discipline as Discipline,
@@ -1792,14 +1954,25 @@ async function resetSubmissionToReview(
       comment: input.comment || null,
       adminNotes: null,
       status: SubmissionStatus.PENDING_MANUAL_REVIEW,
-    },
-  });
+    };
 
-  await prisma.verifiedResult.deleteMany({
-    where: { submissionId },
-  });
+  if (current.verifiedResult) {
+    await prisma.resultSubmission.create({
+      data: {
+        athleteId,
+        seasonId,
+        submissionType: SubmissionType.UPDATE,
+        targetVerifiedResultId: current.verifiedResult.id,
+        ...commonData,
+      },
+    });
+    return;
+  }
 
-  await recalculateSeasonRanking(seasonId);
+  await prisma.resultSubmission.update({
+    where: { id: submissionId },
+    data: commonData,
+  });
 }
 
 export async function updateAthletePublicProfile(
@@ -1849,9 +2022,29 @@ export async function updateAthletePublicProfile(
 export async function deleteAthleteAccount(userId: string) {
   await ensureDatabaseReady();
 
-  return prisma.user.delete({
-    where: { id: userId },
+  const athlete = await prisma.athlete.findUnique({
+    where: { userId },
+    include: { verifiedResults: { select: { seasonId: true } } },
   });
+
+  if (!athlete) throw new Error("ATHLETE_NOT_FOUND");
+
+  await prisma.$transaction([
+    prisma.athlete.update({
+      where: { id: athlete.id },
+      data: { status: EntityStatus.ARCHIVED, archivedAt: new Date() },
+    }),
+    prisma.verifiedResult.updateMany({
+      where: { athleteId: athlete.id, status: EntityStatus.ACTIVE },
+      data: { status: EntityStatus.ARCHIVED, archivedAt: new Date() },
+    }),
+  ]);
+
+  for (const seasonId of new Set(athlete.verifiedResults.map((item) => item.seasonId))) {
+    await recalculateSeasonRanking(seasonId);
+  }
+
+  return athlete;
 }
 
 export async function updateSubmissionForUser(
@@ -1871,6 +2064,7 @@ export async function updateSubmissionForUser(
 
   const submission = await prisma.resultSubmission.findUnique({
     where: { id: submissionId },
+    include: { verifiedResult: true },
   });
 
   if (!submission || submission.athleteId !== athlete.id) {
@@ -1893,19 +2087,36 @@ export async function deleteSubmissionForUser(userId: string, submissionId: stri
 
   const submission = await prisma.resultSubmission.findUnique({
     where: { id: submissionId },
+    include: { verifiedResult: true },
   });
 
   if (!submission || submission.athleteId !== athlete.id) {
     throw new Error("SUBMISSION_NOT_FOUND");
   }
 
-  await prisma.verifiedResult.deleteMany({
-    where: { submissionId },
-  });
-  await prisma.resultSubmission.delete({
-    where: { id: submissionId },
-  });
-  await recalculateSeasonRanking(submission.seasonId);
+  if (submission.verifiedResult) {
+    await prisma.resultSubmission.create({
+      data: {
+        athleteId: submission.athleteId,
+        seasonId: submission.seasonId,
+        eventId: submission.eventId,
+        submissionType: SubmissionType.DELETE,
+        targetVerifiedResultId: submission.verifiedResult.id,
+        eventNameRaw: submission.eventNameRaw,
+        eventDate: submission.eventDate,
+        discipline: submission.discipline,
+        distanceLabel: submission.distanceLabel,
+        ageGroupClaimed: submission.ageGroupClaimed,
+        finishTimeRaw: submission.finishTimeRaw,
+        finishTimeSeconds: submission.finishTimeSeconds,
+        protocolUrl: submission.protocolUrl,
+        comment: "Запрос на удаление подтвержденного результата",
+        status: SubmissionStatus.PENDING_MANUAL_REVIEW,
+      },
+    });
+  } else {
+    await prisma.resultSubmission.delete({ where: { id: submissionId } });
+  }
 }
 
 export async function listEvents() {
@@ -1932,6 +2143,48 @@ export async function listEvents() {
   }));
 }
 
+const getCachedPublicEventList = unstable_cache(
+  async () => {
+    await ensureDatabaseReady();
+
+    const events = await prisma.event.findMany({
+      select: {
+        id: true,
+        name: true,
+        eventDate: true,
+        discipline: true,
+        distanceLabel: true,
+        sourceUrl: true,
+        location: true,
+        _count: {
+          select: {
+            protocolRows: true,
+            verifiedResults: true,
+          },
+        },
+      },
+      orderBy: [{ eventDate: "desc" }, { name: "asc" }],
+    });
+
+    return events.map((event) => ({
+      id: event.id,
+      name: event.name,
+      eventDate: event.eventDate.toISOString(),
+      discipline: event.discipline,
+      distanceLabel: event.distanceLabel,
+      sourceUrl: event.sourceUrl,
+      location: event.location,
+      participantsCount: event._count.verifiedResults,
+      protocolRowsCount: event._count.protocolRows,
+    }));
+  },
+  ["public-event-list-v1"],
+  {
+    revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+    tags: [PUBLIC_DATA_CACHE_TAG],
+  },
+);
+
 function getEventGroupKey(event: {
   name: string;
   eventDate: Date;
@@ -1947,7 +2200,12 @@ function getEventGroupKey(event: {
 }
 
 export async function listPublicEventCards(filters?: { discipline?: string }) {
-  const events = await listEvents();
+  const cachedEvents = await getCachedPublicEventList();
+  const events = cachedEvents.map((event) => ({
+    ...event,
+    eventDate: new Date(event.eventDate),
+    isPast: new Date(event.eventDate) < new Date(),
+  }));
   const groups = new Map<
     string,
     {
@@ -2004,7 +2262,7 @@ export async function listPublicEventCards(filters?: { discipline?: string }) {
   }));
 }
 
-export async function getPublicEventCard(eventId: string) {
+async function loadPublicEventCard(eventId: string) {
   await ensureDatabaseReady();
 
   const event = await prisma.event.findUnique({
@@ -2094,6 +2352,26 @@ export async function getPublicEventCard(eventId: string) {
     ),
     distances,
     participants: currentDistance?.participants ?? [],
+  };
+}
+
+export async function getPublicEventCard(eventId: string) {
+  const event = await unstable_cache(
+    () => loadPublicEventCard(eventId),
+    ["public-event-card-v1", eventId],
+    {
+      revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+      tags: [PUBLIC_DATA_CACHE_TAG],
+    },
+  )();
+
+  if (!event) {
+    return null;
+  }
+
+  return {
+    ...event,
+    eventDate: new Date(event.eventDate),
   };
 }
 
@@ -2190,14 +2468,27 @@ export async function updateAdminManagedEvent(
 export async function deleteAdminManagedEvent(eventId: string) {
   await ensureDatabaseReady();
 
-  await prisma.resultSubmission.updateMany({
-    where: { eventId },
-    data: { eventId: null },
+  const event = await prisma.event.update({
+    where: { id: eventId },
+    data: { status: EntityStatus.ARCHIVED, archivedAt: new Date() },
   });
 
-  await prisma.event.delete({
-    where: { id: eventId },
-  });
+  if (event.competitionId) {
+    const activeDistances = await prisma.event.count({
+      where: {
+        competitionId: event.competitionId,
+        status: EntityStatus.ACTIVE,
+      },
+    });
+    if (activeDistances === 0) {
+      await prisma.competition.update({
+        where: { id: event.competitionId },
+        data: { status: EntityStatus.ARCHIVED, archivedAt: new Date() },
+      });
+    }
+  }
+
+  return event;
 }
 
 export async function listAthletesForAdmin() {
@@ -2207,6 +2498,8 @@ export async function listAthletesForAdmin() {
   const athletes = await prisma.athlete.findMany({
     include: {
       user: true,
+      clubs: { include: { club: true } },
+      coaches: { include: { coach: true } },
       rankingEntries: {
         where: { seasonId: season.id },
       },
@@ -2236,6 +2529,8 @@ export async function getAdminAthleteDetail(athleteId: string) {
     where: { id: athleteId },
     include: {
       user: true,
+      clubs: { include: { club: true } },
+      coaches: { include: { coach: true } },
       submissions: {
         include: {
           verifiedResult: {
@@ -2277,21 +2572,55 @@ export async function updateAthleteByAdmin(
     seasonAgeGroup: string;
     publicDisplayName: string;
     showPublicResults: boolean;
+    birthDate?: string;
+    gender?: Gender;
+    telegramUsername?: string;
+    showTelegramProfile?: boolean;
+    clubIds?: string[];
+    coachIds?: string[];
   },
 ) {
   await ensureDatabaseReady();
 
-  return prisma.athlete.update({
-    where: { id: athleteId },
-    data: {
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      middleName: input.middleName.trim() || null,
-      city: input.city.trim() || null,
-      seasonAgeGroup: input.seasonAgeGroup.trim() || null,
-      publicDisplayName: input.publicDisplayName.trim() || null,
-      showPublicResults: input.showPublicResults,
-    },
+  return prisma.$transaction(async (tx) => {
+    const athlete = await tx.athlete.update({
+      where: { id: athleteId },
+      data: {
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        middleName: input.middleName.trim() || null,
+        city: input.city.trim() || null,
+        seasonAgeGroup: input.seasonAgeGroup.trim() || null,
+        publicDisplayName: input.publicDisplayName.trim() || null,
+        showPublicResults: input.showPublicResults,
+        birthDate: input.birthDate
+          ? new Date(`${input.birthDate}T00:00:00.000Z`)
+          : undefined,
+        gender: input.gender,
+        telegramUsername: input.telegramUsername?.trim() || null,
+        showTelegramProfile: input.showTelegramProfile,
+      },
+    });
+
+    if (input.clubIds) {
+      await tx.athleteClub.deleteMany({ where: { athleteId } });
+      if (input.clubIds.length) {
+        await tx.athleteClub.createMany({
+          data: input.clubIds.map((clubId) => ({ athleteId, clubId })),
+        });
+      }
+    }
+
+    if (input.coachIds) {
+      await tx.athleteCoach.deleteMany({ where: { athleteId } });
+      if (input.coachIds.length) {
+        await tx.athleteCoach.createMany({
+          data: input.coachIds.map((coachId) => ({ athleteId, coachId })),
+        });
+      }
+    }
+
+    return athlete;
   });
 }
 
@@ -2338,7 +2667,36 @@ export async function createSubmissionByAdmin(
   input: ResultSubmissionInput,
 ) {
   await ensureDatabaseReady();
-  return createResultSubmissionForAthlete(athleteId, input);
+  const categoryKey = input.fifthPlaceTime?.trim()
+    ? await resolveAdminScoringCategoryKey(input)
+    : null;
+
+  if (input.fifthPlaceTime?.trim() && !categoryKey) {
+    throw new Error("SCORING_CATEGORY_REQUIRED");
+  }
+
+  const submission = await createResultSubmissionForAthlete(athleteId, input);
+
+  if (input.fifthPlaceTime?.trim() && categoryKey) {
+    await reviewSubmission(
+      submission.id,
+      "approve",
+      input.comment || "Ручной расчет из карточки спортсмена.",
+      {
+        categoryKey,
+        fifthPlaceTime: input.fifthPlaceTime,
+        placementOverall: input.placementOverall,
+        placementInAgeGroup: input.placementInAgeGroup,
+        moderationFlags: {
+          confirmNoPublicProtocol: true,
+          confirmMergedAgeGroups: false,
+          confirmLessThanFiveFinishers: false,
+        },
+      },
+    );
+  }
+
+  return submission;
 }
 
 export async function updateSubmissionByAdmin(
@@ -2349,10 +2707,28 @@ export async function updateSubmissionByAdmin(
 
   const submission = await prisma.resultSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      verifiedResult: {
+        include: {
+          scoreRule: true,
+        },
+      },
+    },
   });
 
   if (!submission) {
     throw new Error("SUBMISSION_NOT_FOUND");
+  }
+
+  const categoryKey = input.fifthPlaceTime?.trim()
+    ? await resolveAdminScoringCategoryKey(
+        input,
+        submission.verifiedResult?.scoreRule.categoryKey,
+      )
+    : null;
+
+  if (input.fifthPlaceTime?.trim() && !categoryKey) {
+    throw new Error("SCORING_CATEGORY_REQUIRED");
   }
 
   await resetSubmissionToReview(
@@ -2361,6 +2737,25 @@ export async function updateSubmissionByAdmin(
     submission.seasonId,
     input,
   );
+
+  if (input.fifthPlaceTime?.trim() && categoryKey) {
+    await reviewSubmission(
+      submission.id,
+      "approve",
+      input.comment || "Ручной перерасчет из карточки спортсмена.",
+      {
+        categoryKey,
+        fifthPlaceTime: input.fifthPlaceTime,
+        placementOverall: input.placementOverall,
+        placementInAgeGroup: input.placementInAgeGroup,
+        moderationFlags: {
+          confirmNoPublicProtocol: true,
+          confirmMergedAgeGroups: false,
+          confirmLessThanFiveFinishers: false,
+        },
+      },
+    );
+  }
 }
 
 export async function deleteSubmissionByAdmin(submissionId: string) {
@@ -2368,17 +2763,24 @@ export async function deleteSubmissionByAdmin(submissionId: string) {
 
   const submission = await prisma.resultSubmission.findUnique({
     where: { id: submissionId },
+    include: { verifiedResult: true },
   });
 
   if (!submission) {
     throw new Error("SUBMISSION_NOT_FOUND");
   }
 
-  await prisma.verifiedResult.deleteMany({
-    where: { submissionId },
-  });
-  await prisma.resultSubmission.delete({
-    where: { id: submissionId },
-  });
+  if (submission.verifiedResult) {
+    await prisma.verifiedResult.update({
+      where: { id: submission.verifiedResult.id },
+      data: { status: EntityStatus.ARCHIVED, archivedAt: new Date() },
+    });
+    await prisma.resultSubmission.update({
+      where: { id: submissionId },
+      data: { adminNotes: "Архивировано администратором" },
+    });
+  } else {
+    await prisma.resultSubmission.delete({ where: { id: submissionId } });
+  }
   await recalculateSeasonRanking(submission.seasonId);
 }

@@ -22,6 +22,11 @@ const sections = [
     text: "Профили спортсменов, ручные правки и история результатов.",
   },
   {
+    href: "/admin/directories",
+    title: "Клубы и тренеры",
+    text: "Справочники, пользовательские предложения, архивирование и восстановление.",
+  },
+  {
     href: "/admin/submissions",
     title: "Подтверждение результатов",
     text: "Очередь заявок, проверка протоколов, подтверждение и отклонение.",
@@ -104,7 +109,7 @@ export default async function AdminDashboardPage() {
           </article>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {sections.map((section) => (
             <Link
               className="border border-border bg-white px-5 py-5 transition hover:bg-surface-strong"

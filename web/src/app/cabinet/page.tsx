@@ -490,8 +490,8 @@ export default async function CabinetPage({
             <Link className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent-strong px-6 py-3 text-base font-semibold text-white transition hover:bg-[#0f2d43]" href="/results/new">
               Добавить результат
             </Link>
-            <Link className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10" href={`/athletes/${profile.id}`}>
-              Публичная карточка
+            <Link className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10" href="/leaderboard">
+              Публичный рейтинг
             </Link>
           </div>
         </article>

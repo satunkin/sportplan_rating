@@ -1,4 +1,4 @@
-import type { Gender } from "@prisma/client";
+import { BenchmarkSource, type Gender } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { fetchNormalizedProtocolFromSource } from "@/lib/protocol-import/parser-runtime.mjs";
@@ -106,6 +106,56 @@ export async function importProtocolForEvent(params: {
         placementOverall: row.placementOverall,
         placementInAgeGroup: row.placementInAgeGroup,
       })),
+    });
+  }
+
+  const groupedRows = new Map<
+    string,
+    {
+      label: string;
+      gender: Gender | null;
+      finishTimes: number[];
+    }
+  >();
+
+  for (const row of rows) {
+    const groupKey = row.ageGroupRaw || row.gender || "OPEN";
+    const group: {
+      label: string;
+      gender: Gender | null;
+      finishTimes: number[];
+    } = groupedRows.get(groupKey) ?? {
+        label: row.ageGroupRaw || row.gender || "Открытая группа",
+        gender: row.gender,
+        finishTimes: [],
+      };
+
+    if (row.finishTimeSeconds !== null) {
+      group.finishTimes.push(row.finishTimeSeconds);
+    }
+
+    groupedRows.set(groupKey, group);
+  }
+
+  await prisma.protocolGroup.deleteMany({
+    where: { eventId: params.eventId },
+  });
+
+  for (const [groupKey, group] of groupedRows) {
+    group.finishTimes.sort((left, right) => left - right);
+    const fifthPlaceTimeSeconds = group.finishTimes[4] ?? null;
+
+    await prisma.protocolGroup.create({
+      data: {
+        eventId: params.eventId,
+        groupKey,
+        label: group.label,
+        gender: group.gender,
+        fifthPlaceTimeSeconds,
+        benchmarkSource: fifthPlaceTimeSeconds
+          ? BenchmarkSource.PROTOCOL
+          : null,
+      },
     });
   }
 

@@ -24,6 +24,9 @@ const sessionSecret = process.env.SESSION_SECRET ?? "";
 const adminEmail = process.env.ADMIN_EMAIL ?? "";
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH ?? "";
 const adminAccessKey = process.env.ADMIN_ACCESS_KEY ?? "";
+const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "";
+const telegramWebhookSecret =
+  process.env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
 const REQUIRED_TABLES = [
   "_prisma_migrations",
   "User",
@@ -31,6 +34,9 @@ const REQUIRED_TABLES = [
   "ResultSubmission",
   "VerifiedResult",
   "RankingEntry",
+  "Competition",
+  "TelegramConversation",
+  "TelegramUpdate",
 ];
 const REQUIRED_RLS_TABLES = [
   "User",
@@ -46,6 +52,18 @@ const REQUIRED_RLS_TABLES = [
   "ManualReview",
   "AuditLog",
   "MagicLinkToken",
+  "Series",
+  "Competition",
+  "ProtocolGroup",
+  "Club",
+  "Coach",
+  "AthleteClub",
+  "AthleteCoach",
+  "EntityProposal",
+  "AthleteLinkRequest",
+  "TelegramConversation",
+  "TelegramUpdate",
+  "TelegramNotification",
 ];
 
 if (!databaseUrl) {
@@ -60,6 +78,14 @@ if (!sessionSecret) {
   blockers.push("SESSION_SECRET is missing.");
 }
 
+if (!telegramBotToken) {
+  blockers.push("TELEGRAM_BOT_TOKEN is missing.");
+}
+
+if (!telegramWebhookSecret) {
+  blockers.push("TELEGRAM_WEBHOOK_SECRET is missing.");
+}
+
 if (!appBaseUrl) {
   blockers.push("APP_BASE_URL is missing.");
 } else if (isLocalhostUrl(appBaseUrl)) {
@@ -67,8 +93,8 @@ if (!appBaseUrl) {
 }
 
 if (!isSmtpConfigured()) {
-  blockers.push(
-    "SMTP config is incomplete. Need SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, and EMAIL_FROM.",
+  warnings.push(
+    "SMTP is not configured. Telegram and admin password login will work, but the legacy athlete magic-link login will be unavailable.",
   );
 }
 

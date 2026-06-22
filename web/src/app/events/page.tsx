@@ -1,72 +1,93 @@
 import Link from "next/link";
 
-import { listPublicEventCards } from "@/lib/db";
+import { listPublicCompetitions } from "@/lib/cyclon-service";
 import { formatDate } from "@/lib/time";
 import { Discipline } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-function formatDisciplineLabel(value: Discipline | string) {
-  if (value === Discipline.RUNNING) return "Бег";
-  if (value === Discipline.CYCLING) return "Велоспорт";
-  if (value === Discipline.SWIMMING) return "Плавание";
-  return "Триатлон";
-}
+const disciplineLabels: Record<Discipline, string> = {
+  RUNNING: "Бег",
+  CYCLING: "Велоспорт",
+  SWIMMING: "Плавание",
+  TRIATHLON: "Триатлон",
+};
 
-type EventItem = Awaited<ReturnType<typeof listPublicEventCards>>[number];
+type CompetitionItem = Awaited<
+  ReturnType<typeof listPublicCompetitions>
+>[number];
 
-function EventList({
-  events,
-  showProtocolMeta,
+function CompetitionList({
+  items,
+  upcoming,
 }: {
-  events: EventItem[];
-  showProtocolMeta: boolean;
+  items: CompetitionItem[];
+  upcoming: boolean;
 }) {
-  if (events.length === 0) {
+  if (!items.length) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-border bg-white/70 px-5 py-8 text-sm text-muted">
+      <p className="border border-dashed border-border px-5 py-8 text-sm text-muted">
         В этом разделе пока нет соревнований.
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="grid gap-4">
-      {events.map((event) => (
-        <Link
-          className="grid gap-4 rounded-[1.5rem] border border-border bg-white/75 px-5 py-5 transition hover:bg-white md:grid-cols-[minmax(0,1fr)_240px]"
-          href={`/events/${event.id}`}
-          key={event.id}
+    <div className="divide-y divide-border border border-border bg-white">
+      {items.map((competition) => (
+        <article
+          className="grid gap-4 px-5 py-5 md:grid-cols-[minmax(0,1fr)_220px]"
+          key={competition.id}
         >
-          <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.16em] text-muted">
-              {formatDate(event.eventDate)} · {formatDisciplineLabel(event.discipline)}
+          <div>
+            <p className="text-sm text-muted">
+              {formatDate(competition.eventDate)} ·{" "}
+              {competition.city ?? "Город уточняется"}
+              {competition.series ? ` · ${competition.series.name}` : ""}
             </p>
-            <h2 className="mt-2 truncate text-xl font-semibold text-accent-strong">
-              {event.name}
+            <h2 className="mt-2 text-xl font-semibold text-foreground">
+              <Link
+                className="underline-offset-4 hover:underline"
+                href={`/events/${competition.id}`}
+              >
+                {competition.name}
+              </Link>
             </h2>
             <p className="mt-2 text-sm text-muted">
-              {event.distances.join(", ")} · {event.location ?? "Место уточняется"}
+              {competition.distances
+                .map(
+                  (distance) =>
+                    `${disciplineLabels[distance.discipline]} · ${distance.distanceLabel}`,
+                )
+                .join(", ")}
             </p>
           </div>
-          <div className="grid gap-2 text-sm text-muted md:text-right">
-            <span>{event.distances.length} дистанц.</span>
-            {showProtocolMeta ? (
+          <div className="flex flex-col items-start gap-2 text-sm md:items-end">
+            {upcoming ? (
+              competition.registrationUrl || competition.pageUrl ? (
+                <a
+                  className="font-semibold text-accent underline-offset-4 hover:underline"
+                  href={competition.registrationUrl ?? competition.pageUrl ?? "#"}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Регистрация
+                </a>
+              ) : (
+                <span className="text-muted">Ссылка появится позже</span>
+              )
+            ) : (
               <>
-                <span>{event.participantsCount} участников рейтинга</span>
-                <span>
-                  {event.protocolRowsCount > 0
-                    ? `протокол загружен: ${event.protocolRowsCount} строк`
-                    : event.hasProtocolUrl
-                      ? "ссылка на протокол добавлена"
-                      : "протокол не добавлен"}
+                <span className="text-muted">
+                  {competition.participantsCount} участников рейтинга
+                </span>
+                <span className="text-muted">
+                  {competition.protocolRowsCount} строк протокола
                 </span>
               </>
-            ) : (
-              <span>протокол и участники появятся после старта</span>
             )}
           </div>
-        </Link>
+        </article>
       ))}
     </div>
   );
@@ -78,73 +99,57 @@ export default async function EventsPage({
   searchParams: Promise<{ discipline?: string }>;
 }) {
   const { discipline } = await searchParams;
-  const events = await listPublicEventCards({ discipline });
-  const upcoming = events.filter((event) => !event.isPast);
-  const past = events.filter((event) => event.isPast);
+  const competitions = await listPublicCompetitions({ discipline });
+  const upcoming = competitions.filter((item) => !item.isPast);
+  const past = competitions.filter((item) => item.isPast);
 
   return (
-    <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_24px_70px_rgba(31,95,139,0.08)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+    <main className="page-shell min-h-screen">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
+        <header className="border-b border-border pb-6">
+          <p className="text-sm font-semibold text-accent">
+            Кубок Циклон · 2026
+          </p>
+          <h1 className="mt-2 text-4xl font-medium text-foreground">
             Соревнования
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-accent-strong">
-            Старты сезона и протоколы
           </h1>
-          <p className="mt-5 max-w-3xl text-base leading-7 text-muted">
-            Здесь собраны будущие и прошедшие соревнования. У одного
-            соревнования может быть несколько дистанций; участники рейтинга и
-            протоколы показываются только для прошедших стартов.
-          </p>
+        </header>
 
-          <form className="mt-6 grid gap-3 rounded-[1.5rem] border border-border bg-white/70 px-5 py-5 sm:grid-cols-[1fr_auto] sm:items-end">
-            <label className="text-sm font-medium text-foreground">
-              Тип соревнования
-              <select
-                className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-                defaultValue={discipline ?? "all"}
-                name="discipline"
-              >
-                <option value="all">Все типы</option>
-                {Object.values(Discipline).map((item) => (
-                  <option key={item} value={item}>
-                    {formatDisciplineLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong"
-              type="submit"
-            >
-              Применить
-            </button>
-          </form>
-        </article>
+        <form className="flex flex-col gap-3 border border-border bg-white px-4 py-4 sm:flex-row">
+          <select
+            className="min-h-11 flex-1 border border-border px-3 text-sm"
+            defaultValue={discipline ?? "all"}
+            name="discipline"
+          >
+            <option value="all">Все дисциплины</option>
+            {Object.values(Discipline).map((item) => (
+              <option key={item} value={item}>
+                {disciplineLabels[item]}
+              </option>
+            ))}
+          </select>
+          <button
+            className="min-h-11 rounded-md bg-accent px-5 text-sm font-semibold text-white"
+            type="submit"
+          >
+            Применить
+          </button>
+        </form>
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]">
-            <div className="flex items-end justify-between border-b border-border pb-5">
-              <h2 className="text-2xl font-semibold text-accent-strong">Будущие</h2>
-              <span className="text-sm text-muted">{upcoming.length}</span>
-            </div>
-            <div className="mt-5">
-              <EventList events={upcoming} showProtocolMeta={false} />
-            </div>
-          </article>
+        <section>
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-2xl font-medium text-foreground">Будущие</h2>
+            <span className="text-sm text-muted">{upcoming.length}</span>
+          </div>
+          <CompetitionList items={upcoming} upcoming />
+        </section>
 
-          <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]">
-            <div className="flex items-end justify-between border-b border-border pb-5">
-              <h2 className="text-2xl font-semibold text-accent-strong">
-                Прошедшие
-              </h2>
-              <span className="text-sm text-muted">{past.length}</span>
-            </div>
-            <div className="mt-5">
-              <EventList events={past} showProtocolMeta />
-            </div>
-          </article>
+        <section>
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-2xl font-medium text-foreground">Прошедшие</h2>
+            <span className="text-sm text-muted">{past.length}</span>
+          </div>
+          <CompetitionList items={past} upcoming={false} />
         </section>
       </section>
     </main>
