@@ -12,7 +12,7 @@
 - Public routes: `/`, `/leaderboard`, `/events`, `/events/[competitionId]`, `/clubs/[clubId]`, `/coaches/[coachId]`, `/rules`, `/participate`.
 - Athlete public profiles are retired: `/athletes/[athleteId]` redirects to `/leaderboard`.
 - Admin routes include dashboard, competitions, athletes, moderation, clubs/trainers and broadcasts.
-- Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, but webhook registration is still required.
+- Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, and the webhook is registered.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
 - Migration result: `13` competitions, `13` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `11` submissions and `10` verified results.
@@ -69,13 +69,13 @@
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
 - Production deployment `https://sportplan-rating.vercel.app` is live; `/api/health` returns `200` with no blockers.
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
+- Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 - Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
 
 ## 5. Open Gaps
 
-- Production webhook has not been registered; run `npm run telegram:set-webhook` after public deployment.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
@@ -84,7 +84,6 @@
 - Legacy web athlete cabinet/result routes remain for compatibility.
 - Imported protocol rows are grouped and benchmarked, but automatic athlete-row matching is not yet implemented.
 - Production SMTP is intentionally optional; without it only the legacy athlete magic-link login is unavailable.
-- Telegram webhook has not yet been registered with Telegram.
 - `plansporta.ru` still points to the old Netlify deployment.
 
 ## 6. Demo Snapshot
@@ -104,14 +103,13 @@
 
 ## 8. Next Steps
 
-1. Register the Telegram webhook against the verified Vercel endpoint.
-2. Run a real Telegram onboarding/result/moderation test.
-3. Attach `plansporta.ru` and `www.plansporta.ru` to Vercel, then switch DNS after confirmation.
-4. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
-5. Add Telegram notification retry processing and connect broadcasts.
-6. Match imported protocol rows to submissions automatically.
-7. Optionally configure SMTP for legacy athlete web login.
-8. Run the separate visual design and polish phase.
+1. Run a real Telegram onboarding/result/moderation test.
+2. Attach `plansporta.ru` and `www.plansporta.ru` to Vercel, then switch DNS after confirmation.
+3. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
+4. Add Telegram notification retry processing and connect broadcasts.
+5. Match imported protocol rows to submissions automatically.
+6. Optionally configure SMTP for legacy athlete web login.
+7. Continue the separate visual design and polish phase.
 
 ## 9. Decision Log
 
@@ -123,3 +121,4 @@
 - `2026-06-20`: archive-first deletion and moderated changes to verified results adopted.
 - `2026-06-20`: additive migration applied to Supabase with no lost protocol/submission/result rows.
 - `2026-06-22`: Vercel Hobby selected for the non-commercial Next.js app and Telegram webhook; Supabase remains the database and masterhost remains the domain/mail provider.
+- `2026-06-22`: production Telegram webhook registered on the verified Vercel endpoint.
