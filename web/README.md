@@ -142,7 +142,7 @@ Finish the hosted production path around the new PostgreSQL runtime: SMTP, deplo
 ## Hosted Deployment
 
 Recommended default:
-- `Netlify` for the Next.js app and Telegram webhook
+- `Vercel Hobby` for the non-commercial Next.js app and Telegram webhook
 - `Supabase PostgreSQL` for the hosted database
 - SMTP is optional while Telegram is the primary athlete interface
 
@@ -174,15 +174,15 @@ It returns:
 - `200` when the current runtime looks deployment-ready
 - `503` when blockers still exist, with a JSON list of blockers and warnings
 
-Practical Netlify path:
-1. Connect the GitHub repository `satunkin/sportplan_rating` to Netlify.
-2. Netlify reads the root `netlify.toml`, installs dependencies in `web`, and runs `npm run build`.
-3. Add the production variables from `.env.example` in Netlify project settings. Never commit real secrets.
+Practical Vercel path:
+1. Connect the GitHub repository `satunkin/sportplan_rating` to the Vercel project.
+2. Set the Vercel project Root Directory to `web`.
+3. Add the production variables from `.env.example` in Vercel project settings. Never commit real secrets.
 4. Use the Supabase transaction pooler URL for `DATABASE_URL`.
 5. Set `APP_BASE_URL=https://plansporta.ru`.
-6. Deploy first to the Netlify preview domain and open `/api/health`.
+6. Deploy first to `sportplan-rating.vercel.app` and open `/api/health`.
 7. After the preview passes, attach `plansporta.ru` and `www.plansporta.ru`.
 8. Register Telegram webhook with `npm run telegram:set-webhook`.
 
-Netlify automatically provisions serverless functions for Next.js route handlers,
+Vercel automatically provisions serverless functions for Next.js route handlers,
 including `/api/telegram/webhook`. No separate bot server is required.

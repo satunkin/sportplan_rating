@@ -5,7 +5,7 @@
 ## 1. Current State
 
 - Updated: `2026-06-22`
-- Phase: `Netlify production preparation with Telegram-first athlete journey`
+- Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
@@ -13,7 +13,7 @@
 - Athlete public profiles are retired: `/athletes/[athleteId]` redirects to `/leaderboard`.
 - Admin routes include dashboard, competitions, athletes, moderation, clubs/trainers and broadcasts.
 - Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret, public bot URL and webhook registration are still required.
-- Deployment target is Netlify Free with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
+- Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
 - Migration result: `13` competitions, `13` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `11` submissions and `10` verified results.
 - Existing user changes present before this implementation were preserved.
@@ -32,7 +32,7 @@
 - Archive is the default destructive-action policy.
 - Only season 2026 is exposed in the current UX.
 - Visual design polish is a separate next phase.
-- `plansporta.ru` is currently served by the existing Netlify site; production DNS must not be changed until the new deploy preview passes.
+- `plansporta.ru` is still served by the old Netlify site; it must not be switched until the Vercel deployment and Telegram webhook are verified.
 
 ## 3. Architecture
 
@@ -64,9 +64,12 @@
 - Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
-- Root `netlify.toml` configures the `web` base directory, Node.js 20 and the standard Netlify Next.js adapter path.
+- Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
 - SMTP is optional for the Telegram-first deployment; without SMTP only the legacy athlete magic-link login is unavailable.
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
+- Production deployment `https://sportplan-rating.vercel.app` is live; `/api/health` returns `200` with no blockers.
+- Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
+- Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 
 ## 5. Open Gaps
@@ -81,7 +84,8 @@
 - Legacy web athlete cabinet/result routes remain for compatibility.
 - Imported protocol rows are grouped and benchmarked, but automatic athlete-row matching is not yet implemented.
 - Production SMTP and hosted deployment remain incomplete.
-- Netlify project settings and production environment variables still need to be configured manually because automated dashboard inspection is unavailable.
+- Telegram webhook has not yet been registered with Telegram.
+- `plansporta.ru` still points to the old Netlify deployment.
 
 ## 6. Demo Snapshot
 
@@ -100,9 +104,9 @@
 
 ## 8. Next Steps
 
-1. Configure the existing Netlify project to build the GitHub repository using root `netlify.toml`.
-2. Add production environment variables and verify a deploy preview.
-3. Register the webhook and run a real Telegram onboarding/result/moderation test.
+1. Register the Telegram webhook against the verified Vercel endpoint.
+2. Run a real Telegram onboarding/result/moderation test.
+3. Attach `plansporta.ru` and `www.plansporta.ru` to Vercel, then switch DNS after confirmation.
 4. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
 5. Add Telegram notification retry processing and connect broadcasts.
 6. Match imported protocol rows to submissions automatically.
@@ -118,4 +122,4 @@
 - `2026-06-20`: clubs and coaches made many-to-many and publicly linkable from rating rows.
 - `2026-06-20`: archive-first deletion and moderated changes to verified results adopted.
 - `2026-06-20`: additive migration applied to Supabase with no lost protocol/submission/result rows.
-- `2026-06-22`: Netlify Free selected for Next.js and Telegram webhook; Supabase remains the database and masterhost remains the domain/mail provider.
+- `2026-06-22`: Vercel Hobby selected for the non-commercial Next.js app and Telegram webhook; Supabase remains the database and masterhost remains the domain/mail provider.
