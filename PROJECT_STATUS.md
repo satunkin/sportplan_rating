@@ -113,7 +113,7 @@
 5. Match imported protocol rows to submissions automatically.
 6. Optionally configure SMTP for legacy athlete web login.
 7. Continue the separate visual design and polish phase.
-8. Monitor the active hourly `Airtable backlog worker`: it processes one highest-priority oldest `Todo` card directly on clean `main`, validates it, commits and pushes to `origin/main`, and marks the card `Done` only after the push succeeds.
+8. Monitor the hourly Airtable PR workflow: the worker proposes one `Todo` card in a dedicated `codex/airtable-*` branch and Draft PR; a separate monitor marks the card `Done` only after the PR is merged into `main`.
 
 ## 9. Decision Log
 
@@ -128,4 +128,4 @@
 - `2026-06-22`: production Telegram webhook registered on the verified Vercel endpoint.
 - `2026-06-22`: hourly Codex automation `airtable-backlog-worker` enabled for the Airtable backlog.
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
-- `2026-06-23`: Airtable automation switched from isolated worktrees to the primary clean `main`; a card reaches `Done` only after validation, commit and successful push to `origin/main`.
+- `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
