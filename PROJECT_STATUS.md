@@ -57,10 +57,9 @@
 - Expanded rows show all results, top-three status, clubs, coaches and consented Telegram username.
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
-- Admin competition creation/editing supports multiple distances, separate URLs, series, protocol-group benchmark overrides and per-distance protocol import.
+- Admin competition editing supports multiple distances, separate URLs, series and protocol-group benchmark overrides; multi-distance creation with a separate protocol per distance remains pending.
 - Admin club/coach directory with archive/restore.
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
-- Admin athlete creation no longer requires email/password and can store an optional Telegram username for later safe bot linking.
 - Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
 - Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
@@ -79,6 +78,7 @@
 
 ## 5. Open Gaps
 
+- Five Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: compact moderation rows, inline moderation feedback, athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
@@ -113,7 +113,7 @@
 5. Match imported protocol rows to submissions automatically.
 6. Optionally configure SMTP for legacy athlete web login.
 7. Continue the separate visual design and polish phase.
-8. Monitor the active hourly `Airtable backlog worker`: it selects one highest-priority oldest `Todo` card, executes it in an isolated worktree, validates the change, and updates the card to `Done` or `Need info`; merge and deployment remain manual.
+8. Monitor the active hourly `Airtable backlog worker`: it processes one highest-priority oldest `Todo` card directly on clean `main`, validates it, commits and pushes to `origin/main`, and marks the card `Done` only after the push succeeds.
 
 ## 9. Decision Log
 
@@ -126,6 +126,6 @@
 - `2026-06-20`: additive migration applied to Supabase with no lost protocol/submission/result rows.
 - `2026-06-22`: Vercel Hobby selected for the non-commercial Next.js app and Telegram webhook; Supabase remains the database and masterhost remains the domain/mail provider.
 - `2026-06-22`: production Telegram webhook registered on the verified Vercel endpoint.
-- `2026-06-22`: hourly Codex automation `airtable-backlog-worker` enabled for one-card-at-a-time execution from the Airtable `Todo` queue in isolated worktrees; merge, push and deployment remain manual.
-- `2026-06-22`: admin athlete creation switched to Telegram-first records without mandatory email/password, with optional stored Telegram username for future linking.
+- `2026-06-22`: hourly Codex automation `airtable-backlog-worker` enabled for the Airtable backlog.
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
+- `2026-06-23`: Airtable automation switched from isolated worktrees to the primary clean `main`; a card reaches `Done` only after validation, commit and successful push to `origin/main`.
