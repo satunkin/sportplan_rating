@@ -18,6 +18,29 @@ export type AthleteProfile = AthleteProfileInput & {
   showPublicResults: boolean;
 };
 
+export type AdminAthleteProfileInput = {
+  firstName: string;
+  lastName: string;
+  city: string;
+  birthDate: string;
+  gender: AthleteGender;
+  telegramUsername: string;
+};
+
+export type AdminAthleteProfile = {
+  firstName: string;
+  lastName: string;
+  city: string;
+  birthDate: string;
+  gender: AthleteGender;
+  seasonYear: number;
+  seasonAge: number;
+  seasonAgeGroup: string;
+  publicDisplayName: string;
+  showPublicResults: boolean;
+  telegramUsername: string;
+};
+
 export type ValidationResult =
   | { success: true; data: AthleteProfile }
   | { success: false; errors: string[] };
@@ -30,6 +53,15 @@ function normalizeSpace(value: string) {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function normalizeTelegramUsername(value: string) {
+  const normalized = value.trim().replace(/\s+/g, "");
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.startsWith("@") ? normalized : `@${normalized}`;
 }
 
 function getAgeAtSeasonEnd(birthDate: Date, seasonYear: number) {
@@ -61,16 +93,20 @@ function getSeasonAgeGroup(gender: AthleteGender, age: number) {
   return `${prefix}${bandStart}-${bandEnd}`;
 }
 
-export function validateAthleteProfile(
-  input: AthleteProfileInput,
-  seasonYear = new Date().getFullYear(),
-): ValidationResult {
+function validateAthleteProfileBase(
+  input: {
+    firstName: string;
+    lastName: string;
+    city: string;
+    birthDate: string;
+    gender: AthleteGender;
+  },
+  seasonYear: number,
+) {
   const errors: string[] = [];
 
   const firstName = normalizeSpace(input.firstName);
   const lastName = normalizeSpace(input.lastName);
-  const middleName = normalizeSpace(input.middleName);
-  const email = input.email.trim().toLowerCase();
   const city = normalizeSpace(input.city);
   const birthDateValue = input.birthDate.trim();
   const gender = input.gender;
@@ -81,14 +117,6 @@ export function validateAthleteProfile(
 
   if (!lastName || !NAME_REGEX.test(lastName)) {
     errors.push("Укажите корректную фамилию.");
-  }
-
-  if (middleName && !NAME_REGEX.test(middleName)) {
-    errors.push("Отчество содержит недопустимые символы.");
-  }
-
-  if (!isValidEmail(email)) {
-    errors.push("Укажите корректный email.");
   }
 
   if (!city) {
@@ -105,25 +133,23 @@ export function validateAthleteProfile(
   }
 
   if (errors.length > 0) {
-    return { success: false, errors };
+    return { success: false as const, errors };
   }
 
   const seasonAge = getAgeAtSeasonEnd(birthDate, seasonYear);
 
   if (seasonAge < 10 || seasonAge > 100) {
     return {
-      success: false,
+      success: false as const,
       errors: ["Возраст должен быть в разумных пределах для участия в рейтинге."],
     };
   }
 
   return {
-    success: true,
+    success: true as const,
     data: {
       firstName,
       lastName,
-      middleName,
-      email,
       city,
       birthDate: birthDateValue,
       gender,
@@ -132,6 +158,63 @@ export function validateAthleteProfile(
       seasonAgeGroup: getSeasonAgeGroup(gender, seasonAge),
       publicDisplayName: `${firstName} ${lastName}`.trim(),
       showPublicResults: false,
+    },
+  };
+}
+
+export function validateAthleteProfile(
+  input: AthleteProfileInput,
+  seasonYear = new Date().getFullYear(),
+): ValidationResult {
+  const middleName = normalizeSpace(input.middleName);
+  const email = input.email.trim().toLowerCase();
+  const baseValidation = validateAthleteProfileBase(input, seasonYear);
+
+  if (middleName && !NAME_REGEX.test(middleName)) {
+    return {
+      success: false,
+      errors: ["Отчество содержит недопустимые символы."],
+    };
+  }
+
+  if (!isValidEmail(email)) {
+    return {
+      success: false,
+      errors: ["Укажите корректный email."],
+    };
+  }
+
+  if (!baseValidation.success) {
+    return baseValidation;
+  }
+
+  return {
+    success: true,
+    data: {
+      ...baseValidation.data,
+      middleName,
+      email,
+    },
+  };
+}
+
+export function validateAdminAthleteProfile(
+  input: AdminAthleteProfileInput,
+  seasonYear = new Date().getFullYear(),
+):
+  | { success: true; data: AdminAthleteProfile }
+  | { success: false; errors: string[] } {
+  const baseValidation = validateAthleteProfileBase(input, seasonYear);
+
+  if (!baseValidation.success) {
+    return baseValidation;
+  }
+
+  return {
+    success: true,
+    data: {
+      ...baseValidation.data,
+      telegramUsername: normalizeTelegramUsername(input.telegramUsername),
     },
   };
 }

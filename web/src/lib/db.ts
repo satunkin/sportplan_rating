@@ -12,7 +12,7 @@ import {
 } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
-import type { AthleteProfile } from "@/lib/athlete-profile";
+import type { AdminAthleteProfile, AthleteProfile } from "@/lib/athlete-profile";
 import { ensureDatabaseReady } from "@/lib/db-bootstrap";
 import {
   createMagicLinkToken,
@@ -2657,8 +2657,35 @@ export async function updateAthleteByAdmin(
   });
 }
 
-export async function createAthleteByAdmin(profile: AthleteProfile, password: string) {
-  return upsertAthleteProfile(profile, password);
+export async function createAthleteByAdmin(profile: AdminAthleteProfile) {
+  await ensureDatabaseReady();
+
+  const user = await prisma.user.create({
+    data: {
+      role: UserRole.ATHLETE,
+    },
+  });
+
+  const athlete = await prisma.athlete.create({
+    data: {
+      userId: user.id,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      middleName: null,
+      publicDisplayName:
+        profile.publicDisplayName ||
+        `${profile.firstName} ${profile.lastName}`.trim(),
+      showPublicResults: profile.showPublicResults,
+      birthDate: new Date(profile.birthDate),
+      gender: profile.gender === "male" ? Gender.MALE : Gender.FEMALE,
+      city: profile.city,
+      seasonAgeGroup: profile.seasonAgeGroup,
+      telegramUsername: profile.telegramUsername || null,
+      showTelegramProfile: false,
+    },
+  });
+
+  return { user, athlete };
 }
 
 export async function createAdminAccount(email: string, password: string) {
