@@ -22,7 +22,7 @@ import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
 import { hasAdminSession } from "@/lib/session";
 
 async function requireAdmin() {
-  if (!(await hasAdminSession())) redirect("/admin/login");
+  if (!(await hasAdminSession())) redirect("/cabinet/admin-login");
 }
 
 function refreshPublicAndAdmin() {
@@ -30,10 +30,10 @@ function refreshPublicAndAdmin() {
   revalidatePath("/");
   revalidatePath("/leaderboard");
   revalidatePath("/events");
-  revalidatePath("/admin");
-  revalidatePath("/admin/events");
-  revalidatePath("/admin/directories");
-  revalidatePath("/admin/submissions");
+  revalidatePath("/cabinet");
+  revalidatePath("/cabinet/competitions");
+  revalidatePath("/cabinet/directories");
+  revalidatePath("/cabinet/submissions");
 }
 
 export async function createCompetition(formData: FormData) {
@@ -51,7 +51,7 @@ export async function createCompetition(formData: FormData) {
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/admin/events/${competition.id}/edit`);
+  redirect(`/cabinet/competitions/${competition.id}/edit`);
 }
 
 export async function saveCompetition(formData: FormData) {
@@ -67,7 +67,7 @@ export async function saveCompetition(formData: FormData) {
     resultsUrl: String(formData.get("resultsUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/admin/events/${competitionId}/edit`);
+  redirect(`/cabinet/competitions/${competitionId}/edit`);
 }
 
 export async function addCompetitionDistance(formData: FormData) {
@@ -79,7 +79,7 @@ export async function addCompetitionDistance(formData: FormData) {
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/admin/events/${competitionId}/edit`);
+  redirect(`/cabinet/competitions/${competitionId}/edit`);
 }
 
 export async function saveGroupBenchmark(formData: FormData) {
@@ -91,7 +91,7 @@ export async function saveGroupBenchmark(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/admin/events/${competitionId}/edit`);
+  redirect(`/cabinet/competitions/${competitionId}/edit`);
 }
 
 export async function setCompetitionArchived(formData: FormData) {
@@ -101,7 +101,7 @@ export async function setCompetitionArchived(formData: FormData) {
   if (restore) await restoreCompetition(competitionId);
   else await archiveCompetition(competitionId);
   refreshPublicAndAdmin();
-  redirect("/admin/events");
+  redirect("/cabinet/competitions");
 }
 
 export async function createDirectory(formData: FormData) {
@@ -112,7 +112,7 @@ export async function createDirectory(formData: FormData) {
     websiteUrl: String(formData.get("websiteUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect("/admin/directories");
+  redirect("/cabinet/directories");
 }
 
 export async function changeDirectoryStatus(formData: FormData) {
@@ -126,7 +126,7 @@ export async function changeDirectoryStatus(formData: FormData) {
         : EntityStatus.ARCHIVED,
   });
   refreshPublicAndAdmin();
-  redirect("/admin/directories");
+  redirect("/cabinet/directories");
 }
 
 export async function approveProposal(formData: FormData) {
@@ -139,7 +139,7 @@ export async function approveProposal(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect("/admin/submissions");
+  redirect("/cabinet/submissions");
 }
 
 export async function rejectProposal(formData: FormData) {
@@ -151,7 +151,7 @@ export async function rejectProposal(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect("/admin/submissions");
+  redirect("/cabinet/submissions");
 }
 
 export async function reviewLinkRequest(formData: FormData) {
@@ -162,5 +162,5 @@ export async function reviewLinkRequest(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect("/admin/submissions");
+  redirect("/cabinet/submissions");
 }

@@ -4,14 +4,14 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-22`
+- Updated: `2026-06-23`
 - Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
 - Public routes: `/`, `/leaderboard`, `/events`, `/events/[competitionId]`, `/clubs/[clubId]`, `/coaches/[coachId]`, `/rules`, `/participate`.
 - Athlete public profiles are retired: `/athletes/[athleteId]` redirects to `/leaderboard`.
-- Admin routes include dashboard, competitions, athletes, moderation, clubs/trainers and broadcasts.
+- `/cabinet` is the canonical workspace for athletes and administrators; administrator sections include competitions, athletes, moderation, clubs/trainers and broadcasts.
 - Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, and the webhook is registered.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
@@ -57,9 +57,12 @@
 - Expanded rows show all results, top-three status, clubs, coaches and consented Telegram username.
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
-- Admin competition creation/editing with multiple distances, separate URLs, series and protocol-group benchmark overrides.
+- Admin competition creation/editing supports multiple distances, separate URLs, series, protocol-group benchmark overrides and per-distance protocol import.
 - Admin club/coach directory with archive/restore.
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
+- Admin athlete creation no longer requires email/password and can store an optional Telegram username for later safe bot linking.
+- Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
+- Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
@@ -110,6 +113,7 @@
 5. Match imported protocol rows to submissions automatically.
 6. Optionally configure SMTP for legacy athlete web login.
 7. Continue the separate visual design and polish phase.
+8. Monitor the active hourly `Airtable backlog worker`: it selects one highest-priority oldest `Todo` card, executes it in an isolated worktree, validates the change, and updates the card to `Done` or `Need info`; merge and deployment remain manual.
 
 ## 9. Decision Log
 
@@ -122,3 +126,6 @@
 - `2026-06-20`: additive migration applied to Supabase with no lost protocol/submission/result rows.
 - `2026-06-22`: Vercel Hobby selected for the non-commercial Next.js app and Telegram webhook; Supabase remains the database and masterhost remains the domain/mail provider.
 - `2026-06-22`: production Telegram webhook registered on the verified Vercel endpoint.
+- `2026-06-22`: hourly Codex automation `airtable-backlog-worker` enabled for one-card-at-a-time execution from the Airtable `Todo` queue in isolated worktrees; merge, push and deployment remain manual.
+- `2026-06-22`: admin athlete creation switched to Telegram-first records without mandatory email/password, with optional stored Telegram username for future linking.
+- `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.

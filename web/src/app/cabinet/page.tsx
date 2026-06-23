@@ -80,7 +80,7 @@ export default async function CabinetPage({
               <div className="flex flex-wrap gap-3">
                 <Link
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white"
-                  href="/admin/submissions"
+                  href="/cabinet/submissions"
                 >
                   Полная очередь проверки
                 </Link>

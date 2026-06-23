@@ -42,7 +42,7 @@ export function SiteFooter() {
             >
               Соглашение о персональных данных
             </Link>
-            <Link className="text-muted/70 underline-offset-4 hover:underline" href="/admin/login">
+            <Link className="text-muted/70 underline-offset-4 hover:underline" href="/cabinet/admin-login">
               Администратору
             </Link>
           </nav>

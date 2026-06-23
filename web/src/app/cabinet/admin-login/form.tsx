@@ -2,7 +2,10 @@
 
 import { useActionState } from "react";
 
-import { loginAdmin, type AdminLoginState } from "@/app/admin/login/actions";
+import {
+  loginAdmin,
+  type AdminLoginState,
+} from "@/app/cabinet/admin-login/actions";
 import type { AdminAuthMode } from "@/lib/admin-auth";
 
 const initialState: AdminLoginState = {
@@ -60,7 +63,7 @@ export function AdminLoginForm({ mode }: { mode: AdminAuthMode }) {
         disabled={pending}
         type="submit"
       >
-        {pending ? "Проверяем..." : "Войти в админку"}
+        {pending ? "Проверяем..." : "Войти в кабинет"}
       </button>
     </form>
   );

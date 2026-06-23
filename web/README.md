@@ -28,7 +28,7 @@ Main product routes:
 - `/` — top-10 male and female rating with expandable history;
 - `/leaderboard` — full rating with search, filters and pagination;
 - `/events` — future and past competitions;
-- `/admin` — competitions, athletes, moderation and directories;
+- `/cabinet` — athlete profile or administrator workspace, depending on the active session;
 - `/api/telegram/webhook` — Telegram webhook.
 
 `Competition` is the parent event entity. The existing Prisma `Event` model is

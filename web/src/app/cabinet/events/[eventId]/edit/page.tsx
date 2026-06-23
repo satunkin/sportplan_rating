@@ -34,7 +34,7 @@ export default async function EditEventPage({
   const isAdmin = await hasAdminSession();
 
   if (!isAdmin) {
-    redirect("/admin/login");
+    redirect("/cabinet/admin-login");
   }
 
   const { eventId } = await params;
@@ -63,7 +63,7 @@ export default async function EditEventPage({
             <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href={`/events/${event.id}`}>
               Публичная карточка
             </Link>
-            <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href="/admin/events">
+            <Link className="inline-flex text-sm font-medium text-white/85 underline-offset-4 hover:underline" href="/cabinet">
               К списку соревнований
             </Link>
           </div>

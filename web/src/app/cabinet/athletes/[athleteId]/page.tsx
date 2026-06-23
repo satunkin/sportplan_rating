@@ -61,7 +61,7 @@ export default async function AdminAthletePage({
   const isAdmin = await hasAdminSession();
 
   if (!isAdmin) {
-    redirect("/admin/login");
+    redirect("/cabinet/admin-login");
   }
 
   const [{ athleteId }, { error }] = await Promise.all([params, searchParams]);
@@ -94,7 +94,7 @@ export default async function AdminAthletePage({
               </p>
             </div>
             <div className="flex gap-3">
-              <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/admin/athletes">
+              <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/cabinet/athletes">
                 К списку участников
               </Link>
             </div>

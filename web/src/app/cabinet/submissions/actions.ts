@@ -16,7 +16,7 @@ function revalidatePublicData() {
 
 async function requireAdminSession() {
   if (!(await hasAdminSession())) {
-    redirect("/admin/login");
+    redirect("/cabinet/admin-login");
   }
 }
 
@@ -58,7 +58,7 @@ export async function approveSubmission(formData: FormData) {
       error.message === "DUPLICATE_VERIFIED_SUBMISSION"
     ) {
       redirect(
-        `/admin/submissions?error=duplicate_verified_submission&submissionId=${encodeURIComponent(
+        `/cabinet/submissions?error=duplicate_verified_submission&submissionId=${encodeURIComponent(
           submissionId,
         )}`,
       );
@@ -69,7 +69,7 @@ export async function approveSubmission(formData: FormData) {
       error.message === "INVALID_FIFTH_PLACE_TIME"
     ) {
       redirect(
-        `/admin/submissions?error=invalid_fifth_place_time&submissionId=${encodeURIComponent(
+        `/cabinet/submissions?error=invalid_fifth_place_time&submissionId=${encodeURIComponent(
           submissionId,
         )}`,
       );
@@ -80,7 +80,7 @@ export async function approveSubmission(formData: FormData) {
       error.message === "SCORING_INPUT_REQUIRED"
     ) {
       redirect(
-        `/admin/submissions?error=missing_scoring_input&submissionId=${encodeURIComponent(
+        `/cabinet/submissions?error=missing_scoring_input&submissionId=${encodeURIComponent(
           submissionId,
         )}`,
       );
@@ -91,7 +91,7 @@ export async function approveSubmission(formData: FormData) {
       error.message === "MANUAL_REVIEW_REASON_REQUIRED"
     ) {
       redirect(
-        `/admin/submissions?error=manual_review_reason_required&submissionId=${encodeURIComponent(
+        `/cabinet/submissions?error=manual_review_reason_required&submissionId=${encodeURIComponent(
           submissionId,
         )}`,
       );
@@ -100,7 +100,7 @@ export async function approveSubmission(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/admin/submissions");
+  revalidatePath("/cabinet/submissions");
   revalidatePath("/cabinet");
   revalidatePublicData();
 }
@@ -112,7 +112,7 @@ export async function rejectSubmission(formData: FormData) {
   const notes = String(formData.get("notes") ?? "");
 
   await reviewSubmission(submissionId, "reject", notes);
-  revalidatePath("/admin/submissions");
+  revalidatePath("/cabinet/submissions");
   revalidatePath("/cabinet");
   revalidatePublicData();
 }
@@ -121,12 +121,12 @@ export async function seedDemoData() {
   await requireAdminSession();
 
   await seedDemoScenario();
-  revalidatePath("/admin/submissions");
+  revalidatePath("/cabinet/submissions");
   revalidatePath("/cabinet");
   revalidatePublicData();
 }
 
 export async function logoutAdmin() {
   await clearAdminSession();
-  redirect("/admin/login");
+  redirect("/cabinet/admin-login");
 }

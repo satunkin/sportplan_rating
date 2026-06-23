@@ -57,20 +57,6 @@ export function getAdminAuthMode(): AdminAuthMode {
   return "unconfigured";
 }
 
-export function getAdminAuthSetupHint() {
-  const mode = getAdminAuthMode();
-
-  if (mode === "credentials") {
-    return "Вход настроен через ADMIN_EMAIL и ADMIN_PASSWORD_HASH.";
-  }
-
-  if (mode === "access_key") {
-    return "Сейчас включен dev fallback через ADMIN_ACCESS_KEY. Для production лучше перейти на ADMIN_EMAIL и ADMIN_PASSWORD_HASH.";
-  }
-
-  return "Админский вход еще не настроен. Добавьте ADMIN_EMAIL и ADMIN_PASSWORD_HASH либо временно ADMIN_ACCESS_KEY.";
-}
-
 export async function createAdminPasswordHash(password: string) {
   return createPasswordHash(password);
 }
@@ -82,8 +68,7 @@ export async function verifyAdminLogin(input: VerifyAdminLoginInput) {
     if (!parsePasswordHash(credentials.passwordHash)) {
       return {
         success: false,
-        error:
-          "ADMIN_PASSWORD_HASH имеет неверный формат. Ожидается salt:hash.",
+        error: "Вход временно недоступен. Обратитесь к владельцу системы.",
       };
     }
 
@@ -121,7 +106,6 @@ export async function verifyAdminLogin(input: VerifyAdminLoginInput) {
 
   return {
     success: false,
-    error:
-      "Админский вход не настроен. Добавьте ADMIN_EMAIL и ADMIN_PASSWORD_HASH либо временно ADMIN_ACCESS_KEY.",
+    error: "Вход временно недоступен. Обратитесь к владельцу системы.",
   };
 }

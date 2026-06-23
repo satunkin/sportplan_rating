@@ -4,15 +4,15 @@ import { logoutAdmin } from "@/app/cabinet/actions";
 import { hasAdminSession } from "@/lib/session";
 
 const adminNavigationLinks = [
-  { href: "/admin", label: "Панель" },
-  { href: "/admin/events", label: "Соревнования" },
-  { href: "/admin/athletes", label: "Участники" },
-  { href: "/admin/directories", label: "Клубы и тренеры" },
-  { href: "/admin/submissions", label: "Проверка" },
-  { href: "/admin/broadcasts", label: "Рассылки" },
+  { href: "/cabinet", label: "Панель" },
+  { href: "/cabinet/competitions", label: "Соревнования" },
+  { href: "/cabinet/athletes", label: "Участники" },
+  { href: "/cabinet/directories", label: "Клубы и тренеры" },
+  { href: "/cabinet/submissions", label: "Проверка" },
+  { href: "/cabinet/broadcasts", label: "Рассылки" },
 ];
 
-export default async function AdminLayout({
+export default async function CabinetLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
