@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   addAthleteSubmissionByAdmin,
+  changeAthleteArchiveStatusByAdmin,
   removeAthleteSubmissionByAdmin,
   saveAthleteByAdmin,
   saveAthleteSubmissionByAdmin,
@@ -94,12 +95,35 @@ export default async function AdminAthletePage({
               </p>
             </div>
             <div className="flex gap-3">
+              <form action={changeAthleteArchiveStatusByAdmin}>
+                <input name="athleteId" type="hidden" value={athlete.id} />
+                <input
+                  name="restore"
+                  type="hidden"
+                  value={athlete.status === "ARCHIVED" ? "true" : "false"}
+                />
+                <input
+                  name="redirectTo"
+                  type="hidden"
+                  value={`/cabinet/athletes/${athlete.id}`}
+                />
+                <button className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" type="submit">
+                  {athlete.status === "ARCHIVED" ? "Восстановить спортсмена" : "Перевести в архив"}
+                </button>
+              </form>
               <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white/80 px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-white" href="/cabinet/athletes">
                 К списку участников
               </Link>
             </div>
           </div>
         </article>
+
+        {athlete.status === "ARCHIVED" ? (
+          <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Спортсмен сейчас в архиве. Он скрыт из активного рейтинга и
+            публичных выборок, но карточку можно проверить и восстановить.
+          </div>
+        ) : null}
 
         {submissionError ? (
           <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">

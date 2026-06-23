@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createAthleteUserByAdmin } from "@/app/cabinet/actions";
+import {
+  changeAthleteArchiveStatusByAdmin,
+  createAthleteUserByAdmin,
+} from "@/app/cabinet/actions";
 import { listAthletesForAdmin } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
 
@@ -64,7 +67,8 @@ export default async function AdminAthletesPage({
             </h2>
             {adminError === "athlete_create_invalid" ? (
               <div className="mt-4 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                Проверьте имя, email, дату рождения, пол и пароль от 8 символов.
+                Проверьте имя, город, дату рождения, пол и Telegram username,
+                если он указан.
               </div>
             ) : null}
             <form action={createAthleteUserByAdmin} className="mt-5 grid gap-4">
@@ -85,23 +89,16 @@ export default async function AdminAthletesPage({
               <div className="grid gap-4 sm:grid-cols-2">
                 <input
                   className="rounded-md border border-border bg-white px-4 py-3"
-                  name="middleName"
-                  placeholder="Отчество"
-                />
-                <input
-                  className="rounded-md border border-border bg-white px-4 py-3"
                   name="city"
                   placeholder="Город"
                   required
                 />
+                <input
+                  className="rounded-md border border-border bg-white px-4 py-3"
+                  name="telegramUsername"
+                  placeholder="Telegram username (необязательно)"
+                />
               </div>
-              <input
-                className="rounded-md border border-border bg-white px-4 py-3"
-                name="email"
-                placeholder="Email"
-                required
-                type="email"
-              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <input
                   className="rounded-md border border-border bg-white px-4 py-3"
@@ -118,14 +115,6 @@ export default async function AdminAthletesPage({
                   <option value="female">Женский</option>
                 </select>
               </div>
-              <input
-                className="rounded-md border border-border bg-white px-4 py-3"
-                minLength={8}
-                name="password"
-                placeholder="Временный пароль"
-                required
-                type="password"
-              />
               <button
                 className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-strong"
                 type="submit"
@@ -173,13 +162,29 @@ export default async function AdminAthletesPage({
                         {athlete.user.email ?? "email не указан"} ·{" "}
                         {athlete.seasonAgeGroup ?? "группа не указана"} ·{" "}
                         {athlete._count.submissions} заявок ·{" "}
-                        {athlete._count.verifiedResults} подтверждено
+                        {athlete._count.verifiedResults} подтверждено ·{" "}
+                        {athlete.status === "ARCHIVED" ? "в архиве" : "активен"}
                       </p>
                     </div>
                     <div className="grid gap-2 text-sm md:text-right">
                       <span className="text-muted">
                         Место: {athlete.rankingEntry?.rank ?? "—"}
                       </span>
+                      <form action={changeAthleteArchiveStatusByAdmin}>
+                        <input name="athleteId" type="hidden" value={athlete.id} />
+                        <input
+                          name="restore"
+                          type="hidden"
+                          value={athlete.status === "ARCHIVED" ? "true" : "false"}
+                        />
+                        <input name="redirectTo" type="hidden" value="/cabinet/athletes" />
+                        <button
+                          className="font-semibold text-accent underline-offset-4 hover:underline"
+                          type="submit"
+                        >
+                          {athlete.status === "ARCHIVED" ? "Восстановить" : "В архив"}
+                        </button>
+                      </form>
                       <Link
                         className="font-semibold text-accent underline-offset-4 hover:underline"
                         href={`/cabinet/athletes/${athlete.id}`}
