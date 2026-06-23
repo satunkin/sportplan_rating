@@ -114,7 +114,7 @@
 5. Match imported protocol rows to submissions automatically.
 6. Optionally configure SMTP for legacy athlete web login.
 7. Continue the separate visual design and polish phase.
-8. Monitor the hourly Airtable PR workflow: the worker proposes one `Todo` card in a dedicated `codex/airtable-*` branch and Draft PR; a separate monitor marks the card `Done` only after the PR is merged into `main`.
+8. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, creating one dedicated `codex/airtable-*` branch and Draft PR per card; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
 
 ## 9. Decision Log
 
