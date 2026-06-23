@@ -96,25 +96,49 @@ export default async function CabinetPage({
             </div>
           </article>
 
-          <section className="grid gap-4 md:grid-cols-4">
-            <article className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-5">
+          <section aria-label="Сводка администратора" className="grid gap-4 md:grid-cols-4">
+            <Link
+              className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-5 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              href="/cabinet/submissions"
+            >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">На проверке</p>
-              <p className="mt-2 text-3xl font-semibold text-accent-strong">
-                {submissions.length}
-              </p>
-            </article>
-            <article className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-5">
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-3xl font-semibold text-accent-strong">
+                  {submissions.length}
+                </p>
+                <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
+              </div>
+            </Link>
+            <Link
+              className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-5 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              href="/cabinet/competitions"
+            >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">Соревнований</p>
-              <p className="mt-2 text-3xl font-semibold text-accent-strong">{events.length}</p>
-            </article>
-            <article className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-5">
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-3xl font-semibold text-accent-strong">{events.length}</p>
+                <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
+              </div>
+            </Link>
+            <Link
+              className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-5 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              href="/cabinet/athletes"
+            >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">Спортсменов</p>
-              <p className="mt-2 text-3xl font-semibold text-accent-strong">{athletes.length}</p>
-            </article>
-            <article className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-5">
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-3xl font-semibold text-accent-strong">{athletes.length}</p>
+                <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
+              </div>
+            </Link>
+            <Link
+              className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-5 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              href="#administrators"
+            >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">Администраторов</p>
-              <p className="mt-2 text-3xl font-semibold text-accent-strong">{admins.length}</p>
-            </article>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-3xl font-semibold text-accent-strong">{admins.length}</p>
+                <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-y-1">↓</span>
+              </div>
+            </Link>
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -249,8 +273,16 @@ export default async function CabinetPage({
                       </div>
                     ) : (
                       upcomingEvents.map((event) => (
-                        <div key={event.id} className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4">
-                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <article
+                          className="group relative rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:border-accent/40 hover:bg-white focus-within:border-accent/40"
+                          key={event.id}
+                        >
+                          <Link
+                            aria-label={`Редактировать соревнование «${event.name}»`}
+                            className="absolute inset-0 rounded-[1.5rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            href={`/cabinet/events/${event.id}/edit`}
+                          />
+                          <div className="pointer-events-none relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                               <p className="text-sm uppercase tracking-[0.16em] text-muted">
                                 {formatDate(event.eventDate)} • {formatDisciplineLabel(event.discipline)}
@@ -260,16 +292,16 @@ export default async function CabinetPage({
                                 {event.distanceLabel} • {event.location ?? "Локация уточняется"}
                               </p>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="pointer-events-auto relative flex gap-3">
                               <Link className="text-sm font-semibold text-accent underline-offset-4 hover:underline" href={`/events/${event.id}`}>
                                 Публичная карточка
                               </Link>
-                              <Link className="text-sm font-semibold text-accent underline-offset-4 hover:underline" href={`/cabinet/events/${event.id}/edit`}>
+                              <span className="text-sm font-semibold text-accent transition-transform group-hover:translate-x-1">
                                 Редактировать
-                              </Link>
+                              </span>
                             </div>
                           </div>
-                        </div>
+                        </article>
                       ))
                     )}
                   </div>
@@ -283,24 +315,32 @@ export default async function CabinetPage({
                       </div>
                     ) : (
                       pastEvents.map((event) => (
-                        <div key={event.id} className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4">
-                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <article
+                          className="group relative rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:border-accent/40 hover:bg-white focus-within:border-accent/40"
+                          key={event.id}
+                        >
+                          <Link
+                            aria-label={`Редактировать соревнование «${event.name}»`}
+                            className="absolute inset-0 rounded-[1.5rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            href={`/cabinet/events/${event.id}/edit`}
+                          />
+                          <div className="pointer-events-none relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                               <p className="text-sm uppercase tracking-[0.16em] text-muted">
                                 {formatDate(event.eventDate)} • {event.participantsCount} подтвержденных участников
                               </p>
                               <p className="mt-2 text-lg font-semibold text-accent-strong">{event.name}</p>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="pointer-events-auto relative flex gap-3">
                               <Link className="text-sm font-semibold text-accent underline-offset-4 hover:underline" href={`/events/${event.id}`}>
                                 Карточка соревнования
                               </Link>
-                              <Link className="text-sm font-semibold text-accent underline-offset-4 hover:underline" href={`/cabinet/events/${event.id}/edit`}>
+                              <span className="text-sm font-semibold text-accent transition-transform group-hover:translate-x-1">
                                 Редактировать
-                              </Link>
+                              </span>
                             </div>
                           </div>
-                        </div>
+                        </article>
                       ))
                     )}
                   </div>
@@ -319,17 +359,24 @@ export default async function CabinetPage({
               </div>
               <div className="mt-6 grid gap-3">
                 {submissions.slice(0, 5).map((submission) => (
-                  <div key={submission.id} className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4">
+                  <Link
+                    className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    href={`/cabinet/submissions?submissionId=${encodeURIComponent(submission.id)}`}
+                    key={submission.id}
+                  >
                     <p className="text-sm uppercase tracking-[0.16em] text-muted">
                       {formatDate(submission.eventDate)} • {formatDisciplineLabel(submission.discipline)}
                     </p>
-                    <p className="mt-2 text-lg font-semibold text-accent-strong">
-                      {submission.eventNameRaw}
-                    </p>
+                    <div className="mt-2 flex items-start justify-between gap-3">
+                      <p className="text-lg font-semibold text-accent-strong">
+                        {submission.eventNameRaw}
+                      </p>
+                      <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
+                    </div>
                     <p className="mt-2 text-sm text-muted">
                       {submission.athlete.firstName} {submission.athlete.lastName} • {submission.finishTimeRaw}
                     </p>
-                  </div>
+                  </Link>
                 ))}
                 {submissions.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-white/70 px-4 py-4 text-sm text-muted">
@@ -352,7 +399,11 @@ export default async function CabinetPage({
               </div>
               <div className="mt-6 grid gap-3">
                 {athletes.slice(0, 10).map((athlete) => (
-                  <div key={athlete.id} className="rounded-[1.5rem] border border-border bg-white/75 px-5 py-4">
+                  <Link
+                    className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    href={`/cabinet/athletes/${athlete.id}`}
+                    key={athlete.id}
+                  >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <p className="text-lg font-semibold text-accent-strong">{athlete.displayName}</p>
@@ -364,17 +415,20 @@ export default async function CabinetPage({
                         <p className="text-sm text-muted">
                           Место: {athlete.rankingEntry?.rank ?? "—"}
                         </p>
-                        <Link className="text-sm font-semibold text-accent underline-offset-4 hover:underline" href={`/cabinet/athletes/${athlete.id}`}>
+                        <span className="text-sm font-semibold text-accent transition-transform group-hover:translate-x-1">
                           Открыть карточку
-                        </Link>
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </article>
 
-            <article className="rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]">
+            <article
+              className="scroll-mt-24 rounded-[2rem] border border-border bg-surface px-7 py-8 shadow-[0_18px_50px_rgba(27,42,51,0.08)]"
+              id="administrators"
+            >
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
                 Администраторы
               </p>
