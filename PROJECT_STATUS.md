@@ -64,6 +64,7 @@
 - Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Moderation queue now uses compact one-row submission entries with quick approve/reject actions and expandable detailed editing per submission.
+- Moderation quick approve/reject actions now give inline pending/success feedback and remove the reviewed row from the queue without a full page reload.
 - Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
@@ -79,7 +80,7 @@
 
 ## 5. Open Gaps
 
- - Four Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
+- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
