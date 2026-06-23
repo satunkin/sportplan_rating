@@ -17,6 +17,7 @@ import {
   deleteAthleteAccount,
   deleteSubmissionByAdmin,
   deleteSubmissionForUser,
+  setAthleteArchiveStatusByAdmin,
   updateAdminManagedEvent,
   updateAthleteByAdmin,
   updateAthletePublicProfile,
@@ -271,6 +272,18 @@ export async function saveAthleteByAdmin(formData: FormData) {
 
   revalidateAppShell();
   redirect(`/cabinet/athletes/${athleteId}`);
+}
+
+export async function changeAthleteArchiveStatusByAdmin(formData: FormData) {
+  await requireAdminSession();
+
+  const athleteId = String(formData.get("athleteId") ?? "");
+  const restore = String(formData.get("restore") ?? "") === "true";
+  const redirectTo = String(formData.get("redirectTo") ?? "") || "/cabinet/athletes";
+
+  await setAthleteArchiveStatusByAdmin(athleteId, restore);
+  revalidateAppShell();
+  redirect(redirectTo);
 }
 
 export async function addAthleteSubmissionByAdmin(formData: FormData) {

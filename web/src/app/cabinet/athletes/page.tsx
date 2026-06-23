@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createAthleteUserByAdmin } from "@/app/cabinet/actions";
+import {
+  changeAthleteArchiveStatusByAdmin,
+  createAthleteUserByAdmin,
+} from "@/app/cabinet/actions";
 import { listAthletesForAdmin } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
 
@@ -159,13 +162,29 @@ export default async function AdminAthletesPage({
                         {athlete.user.email ?? "email не указан"} ·{" "}
                         {athlete.seasonAgeGroup ?? "группа не указана"} ·{" "}
                         {athlete._count.submissions} заявок ·{" "}
-                        {athlete._count.verifiedResults} подтверждено
+                        {athlete._count.verifiedResults} подтверждено ·{" "}
+                        {athlete.status === "ARCHIVED" ? "в архиве" : "активен"}
                       </p>
                     </div>
                     <div className="grid gap-2 text-sm md:text-right">
                       <span className="text-muted">
                         Место: {athlete.rankingEntry?.rank ?? "—"}
                       </span>
+                      <form action={changeAthleteArchiveStatusByAdmin}>
+                        <input name="athleteId" type="hidden" value={athlete.id} />
+                        <input
+                          name="restore"
+                          type="hidden"
+                          value={athlete.status === "ARCHIVED" ? "true" : "false"}
+                        />
+                        <input name="redirectTo" type="hidden" value="/cabinet/athletes" />
+                        <button
+                          className="font-semibold text-accent underline-offset-4 hover:underline"
+                          type="submit"
+                        >
+                          {athlete.status === "ARCHIVED" ? "Восстановить" : "В архив"}
+                        </button>
+                      </form>
                       <Link
                         className="font-semibold text-accent underline-offset-4 hover:underline"
                         href={`/cabinet/athletes/${athlete.id}`}

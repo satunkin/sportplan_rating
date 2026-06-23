@@ -59,6 +59,7 @@
 - Public club and coach cards for active 2026 ranking participants.
 - Admin competition editing supports multiple distances, separate URLs, series and protocol-group benchmark overrides; multi-distance creation with a separate protocol per distance remains pending.
 - Admin club/coach directory with archive/restore.
+- Admin athlete archive/restore controls are available from the athletes list and the athlete detail card.
 - Admin athlete creation no longer requires email, password or patronymic and can store an optional Telegram username for future linking.
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
 - Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
@@ -80,6 +81,7 @@
 
 ## 5. Open Gaps
 
+- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, Telegram-first admin athlete creation and multi-distance competition creation.
 - Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, athlete archive controls and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
