@@ -766,6 +766,13 @@ async function resolveSeries(name?: string) {
   });
 }
 
+type AdminCompetitionDistanceInput = {
+  discipline?: string;
+  distanceLabel?: string;
+  protocolUrl?: string;
+  categoryId?: string | null;
+};
+
 export async function createAdminCompetition(input: {
   name: string;
   eventDate: string;
@@ -774,13 +781,36 @@ export async function createAdminCompetition(input: {
   pageUrl?: string;
   registrationUrl?: string;
   resultsUrl?: string;
-  discipline: string;
-  distanceLabel: string;
+  discipline?: string;
+  distanceLabel?: string;
   protocolUrl?: string;
   categoryId?: string | null;
+  distances?: AdminCompetitionDistanceInput[];
 }) {
   const series = await resolveSeries(input.seriesName);
   const eventDate = new Date(`${input.eventDate}T09:00:00.000Z`);
+  const rawDistances = input.distances?.length
+    ? input.distances
+    : [
+        {
+          discipline: input.discipline,
+          distanceLabel: input.distanceLabel,
+          protocolUrl: input.protocolUrl,
+          categoryId: input.categoryId,
+        },
+      ];
+  const distances = rawDistances
+    .map((distance) => ({
+      discipline: distance.discipline?.trim() || "RUNNING",
+      distanceLabel: distance.distanceLabel?.trim() || "",
+      protocolUrl: distance.protocolUrl?.trim() || null,
+      categoryId: distance.categoryId ?? input.categoryId ?? null,
+    }))
+    .filter((distance) => distance.distanceLabel);
+
+  if (!distances.length) {
+    throw new Error("COMPETITION_DISTANCE_REQUIRED");
+  }
 
   const competition = await prisma.competition.create({
     data: {
@@ -792,30 +822,31 @@ export async function createAdminCompetition(input: {
       registrationUrl: input.registrationUrl?.trim() || null,
       resultsUrl: input.resultsUrl?.trim() || null,
       distances: {
-        create: {
+        create: distances.map((distance) => ({
           name: input.name.trim(),
           eventDate,
           location: input.city?.trim() || null,
-          discipline: input.discipline as never,
-          distanceLabel: input.distanceLabel.trim(),
-          sourceUrl: input.protocolUrl?.trim() || null,
-          categoryId: input.categoryId ?? null,
-        },
+          discipline: distance.discipline as never,
+          distanceLabel: distance.distanceLabel,
+          sourceUrl: distance.protocolUrl,
+          categoryId: distance.categoryId,
+        })),
       },
     },
     include: { distances: true },
   });
 
-  const distance = competition.distances[0];
-  if (distance?.sourceUrl) {
-    await importProtocolForEvent({
-      eventId: distance.id,
-      sourceUrl: distance.sourceUrl,
-      eventName: competition.name,
-      eventDate: competition.eventDate,
-      location: competition.city,
-      distanceLabel: distance.distanceLabel,
-    });
+  for (const distance of competition.distances) {
+    if (distance.sourceUrl) {
+      await importProtocolForEvent({
+        eventId: distance.id,
+        sourceUrl: distance.sourceUrl,
+        eventName: competition.name,
+        eventDate: competition.eventDate,
+        location: competition.city,
+        distanceLabel: distance.distanceLabel,
+      });
+    }
   }
 
   return competition;

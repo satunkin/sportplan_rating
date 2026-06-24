@@ -4,7 +4,7 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-23`
+- Updated: `2026-06-24`
 - Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
@@ -57,7 +57,7 @@
 - Expanded rows show all results, top-three status, clubs, coaches and consented Telegram username.
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
-- Admin competition editing supports multiple distances, separate URLs, series and protocol-group benchmark overrides; multi-distance creation with a separate protocol per distance remains pending.
+- Admin competition creation and editing support multiple distances, separate protocol URLs per distance, series and protocol-group benchmark overrides.
 - Admin club/coach directory with archive/restore.
 - Admin athlete archive/restore controls are available from the athletes list and the athlete detail card.
 - Admin athlete creation no longer requires email, password or patronymic and can store an optional Telegram username for future linking.
@@ -82,9 +82,6 @@
 
 ## 5. Open Gaps
 
-- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
-- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, Telegram-first admin athlete creation and multi-distance competition creation.
-- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, athlete archive controls and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
@@ -136,3 +133,4 @@
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
+- `2026-06-24`: admin competition creation now supports multiple distances with a separate protocol URL/import per distance.
