@@ -17,6 +17,7 @@
     "db:status": "prisma migrate status --config prisma.config.ts",
     "db:reset": "prisma migrate reset --force",
     "db:seed:demo": "node scripts/seed-demo.mjs",
+    "db:clear:demo": "node scripts/clear-demo-data.mjs",
     "db:baseline:postgres": "mkdir -p prisma/postgres && prisma migrate diff --config prisma.config.ts --from-empty --to-schema-datamodel prisma/schema.prisma --script --output prisma/postgres/baseline.sql",
     "db:import:protocol": "node scripts/import-event-protocol.mjs",
     "db:import:protocol:url": "node scripts/import-event-protocol-from-url.mjs",

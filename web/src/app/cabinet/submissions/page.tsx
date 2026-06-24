@@ -10,7 +10,6 @@ import {
   approveSubmission,
   logoutAdmin,
   rejectSubmission,
-  seedDemoData,
 } from "@/app/cabinet/submissions/actions";
 import {
   asJsonObject,
@@ -74,21 +73,6 @@ export default async function AdminSubmissionsPage({
               </button>
             </form>
           </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <form action={seedDemoData}>
-            <button
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-strong"
-              type="submit"
-            >
-              Загрузить демо-данные
-            </button>
-          </form>
-          <p className="text-sm leading-6 text-muted">
-            Создает тестовых спортсменов, результаты и заполненную таблицу
-            рейтинга для проверки end-to-end потока.
-          </p>
         </div>
 
         {error === "duplicate_verified_submission" ? (

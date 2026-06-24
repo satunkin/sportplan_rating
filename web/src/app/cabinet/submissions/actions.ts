@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { reviewSubmission, seedDemoScenario } from "@/lib/db";
+import { reviewSubmission } from "@/lib/db";
 import { clearAdminSession, hasAdminSession } from "@/lib/session";
 import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
 
@@ -112,15 +112,6 @@ export async function rejectSubmission(formData: FormData) {
   const notes = String(formData.get("notes") ?? "");
 
   await reviewSubmission(submissionId, "reject", notes);
-  revalidatePath("/cabinet/submissions");
-  revalidatePath("/cabinet");
-  revalidatePublicData();
-}
-
-export async function seedDemoData() {
-  await requireAdminSession();
-
-  await seedDemoScenario();
   revalidatePath("/cabinet/submissions");
   revalidatePath("/cabinet");
   revalidatePublicData();
