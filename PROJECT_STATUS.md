@@ -4,7 +4,7 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-23`
+- Updated: `2026-06-24`
 - Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
@@ -53,7 +53,7 @@
 
 - Safe additive schema and data backfill from existing events to competitions/distances.
 - Public top-10 rating with two columns and one expandable athlete row per column.
-- Full rating with desktop columns, mobile gender tabs, search, age-group/club/coach filters and 50-item pagination.
+- Full rating with desktop columns, mobile gender tabs, compact auto-applying search, age-group/club/coach filters, reset action and 50-item pagination.
 - Expanded rows show all results, top-three status, clubs, coaches and consented Telegram username.
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
@@ -136,3 +136,4 @@
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
+- `2026-06-24`: public leaderboard filters became compact, auto-applying URL filters with a reset action shown only when filters are active.

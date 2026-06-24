@@ -1,82 +1,149 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
 export function LeaderboardFilterForm({
   ageGroups,
-  disciplines,
+  clubs,
+  coaches,
 }: {
   ageGroups: string[];
-  disciplines: string[];
+  clubs: { id: string; name: string }[];
+  coaches: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const urlQuery = searchParams.get("q") ?? "";
+  const [queryState, setQueryState] = useState({
+    urlQuery,
+    value: urlQuery,
+  });
+  const query =
+    queryState.urlQuery === urlQuery ? queryState.value : urlQuery;
+  const active =
+    Boolean(urlQuery) ||
+    Boolean(searchParams.get("ageGroup")) ||
+    Boolean(searchParams.get("club")) ||
+    Boolean(searchParams.get("coach"));
 
-  const onChange = (formData: FormData) => {
-    const params = new URLSearchParams(searchParams.toString());
-    const ageGroup = String(formData.get("ageGroup") ?? "all");
-    const discipline = String(formData.get("discipline") ?? "all");
+  const updateParams = useCallback(
+    (nextValues: {
+      q?: string;
+      ageGroup?: string;
+      club?: string;
+      coach?: string;
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const keys = ["q", "ageGroup", "club", "coach"] as const;
 
-    if (ageGroup === "all") params.delete("ageGroup");
-    else params.set("ageGroup", ageGroup);
+      for (const key of keys) {
+        if (!(key in nextValues)) continue;
+        const value = nextValues[key]?.trim() ?? "";
+        if (value) params.set(key, value);
+        else params.delete(key);
+      }
 
-    if (discipline === "all") params.delete("discipline");
-    else params.set("discipline", discipline);
+      params.delete("malePage");
+      params.delete("femalePage");
+      const queryString = params.toString();
 
+      startTransition(() => {
+        router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+          scroll: false,
+        });
+      });
+    },
+    [pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    if (query === urlQuery) return;
+    const timeout = window.setTimeout(() => {
+      updateParams({ q: query });
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [query, updateParams, urlQuery]);
+
+  const resetFilters = () => {
+    setQueryState({ urlQuery, value: "" });
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`);
+      router.replace(pathname, { scroll: false });
     });
   };
 
   return (
     <form
-      action={onChange}
-      className="grid gap-4 rounded-[1.5rem] border border-border bg-white/70 px-5 py-5 md:grid-cols-2"
+      className="grid gap-2 rounded-xl border border-border bg-surface px-4 py-4 md:grid-cols-[minmax(170px,1.4fr)_repeat(3,minmax(130px,1fr))_auto]"
+      onSubmit={(event) => event.preventDefault()}
     >
-      <label className="text-sm font-medium text-foreground">
-        Возрастная группа
-        <select
-          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-          defaultValue={searchParams.get("ageGroup") ?? "all"}
-          name="ageGroup"
-        >
-          <option value="all">Все группы</option>
-          {ageGroups.map((ageGroup) => (
-            <option key={ageGroup} value={ageGroup}>
-              {ageGroup}
-            </option>
-          ))}
-        </select>
-      </label>
+      <input
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="q"
+        onChange={(event) =>
+          setQueryState({ urlQuery, value: event.target.value })
+        }
+        placeholder="Имя атлета"
+        value={query}
+      />
+      <select
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="ageGroup"
+        onChange={(event) => updateParams({ ageGroup: event.target.value })}
+        value={searchParams.get("ageGroup") ?? ""}
+      >
+        <option value="">Все группы</option>
+        {ageGroups.map((ageGroup) => (
+          <option key={ageGroup} value={ageGroup}>
+            {ageGroup}
+          </option>
+        ))}
+      </select>
 
-      <label className="text-sm font-medium text-foreground">
-        Дисциплина
-        <select
-          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-          defaultValue={searchParams.get("discipline") ?? "all"}
-          name="discipline"
-        >
-          <option value="all">Все дисциплины</option>
-          {disciplines.map((discipline) => (
-            <option key={discipline} value={discipline}>
-              {discipline}
-            </option>
-          ))}
-        </select>
-      </label>
+      <select
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="club"
+        onChange={(event) => updateParams({ club: event.target.value })}
+        value={searchParams.get("club") ?? ""}
+      >
+        <option value="">Все клубы</option>
+        {clubs.map((club) => (
+          <option key={club.id} value={club.id}>
+            {club.name}
+          </option>
+        ))}
+      </select>
 
-      <div className="flex items-center justify-between text-sm text-muted md:col-span-2">
-        <span>Фильтры применяются без перезагрузки страницы.</span>
-        <button
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 py-2 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
-          disabled={isPending}
-          type="submit"
-        >
-          {isPending ? "Обновляем..." : "Применить"}
-        </button>
+      <select
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="coach"
+        onChange={(event) => updateParams({ coach: event.target.value })}
+        value={searchParams.get("coach") ?? ""}
+      >
+        <option value="">Все тренеры</option>
+        {coaches.map((coach) => (
+          <option key={coach.id} value={coach.id}>
+            {coach.name}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex min-h-10 items-center justify-end">
+        {active ? (
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-semibold text-foreground transition hover:bg-surface-strong disabled:opacity-70"
+            disabled={isPending}
+            onClick={resetFilters}
+            type="button"
+          >
+            Сбросить
+          </button>
+        ) : (
+          <span className="hidden md:block" />
+        )}
       </div>
     </form>
   );
