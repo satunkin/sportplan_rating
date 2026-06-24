@@ -15,6 +15,7 @@
 - Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, and the webhook is registered.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
+- Supabase security hardening is applied: all current app tables have RLS enabled, and broad `anon` / `authenticated` / `service_role` table grants were revoked.
 - Current Supabase data after demo cleanup: `6` competitions, `6` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `3` submissions and `3` verified results.
 - Existing user changes present before this implementation were preserved.
 
@@ -62,8 +63,10 @@
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
 - Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
 - Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
+- Admin dashboard summary cards, competition cards, moderation items and athlete cards link to their corresponding sections or detail pages with keyboard-visible focus states.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Moderation queue now uses compact one-row submission entries with quick approve/reject actions and expandable detailed editing per submission.
+- Moderation quick approve/reject actions now give inline pending/success feedback and remove the reviewed row from the queue without a full page reload.
 - Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
@@ -74,13 +77,14 @@
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
+- Supabase RLS/grant lockdown migration `20260623153000_supabase_rls_public_grants_lockdown` is applied and recorded in `_prisma_migrations`.
 - Demo cleanup script `npm run db:clear:demo` removes generated demo athletes, submissions, verified results and demo competitions; the admin UI no longer exposes the demo seed button.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 - Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
 
 ## 5. Open Gaps
 
- - Four Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
+- Three Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
@@ -116,7 +120,7 @@
 6. Match imported protocol rows to submissions automatically.
 7. Optionally configure SMTP for legacy athlete web login.
 8. Continue the separate visual design and polish phase.
-9. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, creating one dedicated `codex/airtable-*` branch and Draft PR per card; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
+9. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
 
 ## 9. Decision Log
 
@@ -133,4 +137,5 @@
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
+- `2026-06-23`: Supabase public-schema hardening was applied directly to production: current app tables keep RLS enabled and broad Data API grants are revoked.
 - `2026-06-24`: generated demo athletes, demo submissions/results and demo competitions were deleted from Supabase so real data can be entered through the admin panel.
