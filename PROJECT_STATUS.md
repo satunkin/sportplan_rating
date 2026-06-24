@@ -4,7 +4,7 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-23`
+- Updated: `2026-06-24`
 - Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
@@ -67,7 +67,7 @@
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Moderation queue now uses compact one-row submission entries with quick approve/reject actions and expandable detailed editing per submission.
 - Moderation quick approve/reject actions now give inline pending/success feedback and remove the reviewed row from the queue without a full page reload.
-- Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
+- Telegram bot menu, onboarding, `Имя Фамилия` profile-name parsing, safe profile-link requests including swapped name-order matches, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
@@ -136,3 +136,4 @@
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
+- `2026-06-24`: Telegram athlete full-name parsing now treats input as `Имя Фамилия` and can match existing active athletes with swapped first/last names before creating a new profile.

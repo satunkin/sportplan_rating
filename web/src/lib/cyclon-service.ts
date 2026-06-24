@@ -40,8 +40,8 @@ function splitFullName(value: string) {
   const parts = value.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
 
   return {
-    lastName: parts[0] ?? "",
-    firstName: parts[1] ?? parts[0] ?? "",
+    firstName: parts[0] ?? "",
+    lastName: parts[1] ?? "",
     middleName: parts.slice(2).join(" ") || null,
   };
 }
@@ -55,6 +55,38 @@ function getDisplayName(athlete: {
     athlete.publicDisplayName?.trim() ||
     `${athlete.firstName} ${athlete.lastName}`.trim()
   );
+}
+
+async function findActiveTelegramLinkCandidate(params: {
+  birthDate: Date;
+  firstName: string;
+  lastName: string;
+}) {
+  const baseWhere = {
+    birthDate: params.birthDate,
+    status: EntityStatus.ACTIVE,
+    user: { telegramId: null },
+  };
+
+  const exactCandidate = await prisma.athlete.findFirst({
+    where: {
+      ...baseWhere,
+      firstName: { equals: params.firstName, mode: "insensitive" },
+      lastName: { equals: params.lastName, mode: "insensitive" },
+    },
+  });
+
+  if (exactCandidate) {
+    return exactCandidate;
+  }
+
+  return prisma.athlete.findFirst({
+    where: {
+      ...baseWhere,
+      firstName: { equals: params.lastName, mode: "insensitive" },
+      lastName: { equals: params.firstName, mode: "insensitive" },
+    },
+  });
 }
 
 async function ensureCyclonSeason() {
@@ -103,14 +135,10 @@ export async function registerTelegramAthlete(input: TelegramProfileInput) {
     return { status: "linked" as const, user: existingTelegramUser };
   }
 
-  const candidate = await prisma.athlete.findFirst({
-    where: {
-      firstName: { equals: names.firstName, mode: "insensitive" },
-      lastName: { equals: names.lastName, mode: "insensitive" },
-      birthDate,
-      status: EntityStatus.ACTIVE,
-      user: { telegramId: null },
-    },
+  const candidate = await findActiveTelegramLinkCandidate({
+    birthDate,
+    firstName: names.firstName,
+    lastName: names.lastName,
   });
 
   if (candidate) {
@@ -1135,6 +1163,7 @@ export async function reviewAthleteLinkRequest(params: {
   }
 
   const profile = asJsonObject(request.profileJson);
+  const names = splitFullName(String(profile.fullName ?? ""));
   await prisma.$transaction([
     prisma.user.update({
       where: { id: request.candidateAthlete.userId },
@@ -1143,6 +1172,12 @@ export async function reviewAthleteLinkRequest(params: {
     prisma.athlete.update({
       where: { id: request.candidateAthlete.id },
       data: {
+        firstName: names.firstName || request.candidateAthlete.firstName,
+        lastName: names.lastName || request.candidateAthlete.lastName,
+        middleName:
+          names.firstName && names.lastName
+            ? names.middleName
+            : request.candidateAthlete.middleName,
         telegramUsername: request.telegramUsername,
         showTelegramProfile: Boolean(profile.showTelegramProfile),
       },
