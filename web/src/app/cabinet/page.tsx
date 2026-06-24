@@ -3,13 +3,14 @@ import Link from "next/link";
 import {
   createAdminUserByAdmin,
   createAthleteUserByAdmin,
-  createCompetitionCard,
   logoutAdmin,
   logoutAthlete,
   removeAthleteAccount,
   removeAthleteSubmission,
   saveAthleteProfileSettings,
 } from "@/app/cabinet/actions";
+import { createCompetition } from "@/app/cabinet/management-actions";
+import { CompetitionCreateForm } from "@/app/cabinet/competitions/competition-create-form";
 import { ScoreBreakdown } from "@/components/score-breakdown";
 import { TechnicalNote } from "@/components/technical-note";
 import {
@@ -151,50 +152,7 @@ export default async function CabinetPage({
                   Создать соревнование заранее или под протокол
                 </h2>
               </div>
-              <form action={createCompetitionCard} className="mt-6 grid gap-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Название
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="name" required />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Дата соревнования
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="eventDate" required type="date" />
-                  </label>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Дисциплина
-                    <select className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="discipline" required>
-                      {Object.values(Discipline).map((discipline) => (
-                        <option key={discipline} value={discipline}>
-                          {formatDisciplineLabel(discipline)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Дистанция
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="distanceLabel" required />
-                  </label>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Место проведения
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="location" />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Ссылка на протокол
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-white px-4 py-3" name="protocolUrl" type="url" />
-                  </label>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Если ссылка ведет на поддержанный протокол `runc.run` или `grom.place`, система после сохранения автоматически загрузит строки протокола в базу данных события.
-                </p>
-                <button className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong" type="submit">
-                  Создать карточку соревнования
-                </button>
-              </form>
+              <CompetitionCreateForm action={createCompetition} />
             </article>
 
             <div className="grid gap-6">
