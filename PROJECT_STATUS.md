@@ -15,7 +15,7 @@
 - Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, and the webhook is registered.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
-- Migration result: `13` competitions, `13` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `11` submissions and `10` verified results.
+- Current Supabase data after demo cleanup: `6` competitions, `6` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `3` submissions and `3` verified results.
 - Existing user changes present before this implementation were preserved.
 
 ## 2. Confirmed Decisions
@@ -77,6 +77,7 @@
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
+- Demo cleanup script `npm run db:clear:demo` removes generated demo athletes, submissions, verified results and demo competitions; the admin UI no longer exposes the demo seed button.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 - Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
 
@@ -94,8 +95,8 @@
 
 ## 6. Demo Snapshot
 
-- Women: Анна Лебедева `1626`, Марина Крылова `826`.
-- Men: Алексей Волков `1109`, Илья Серов `911`, Николай Сатункин `8`.
+- Demo seed data is cleared from Supabase: `0` demo users, `0` demo athletes, `0` demo submissions, `0` demo verified results and `0` demo competitions/distances remain.
+- Current real/manual totals after cleanup: `2` athletes, `6` competitions, `6` distances, `3` submissions and `3` verified results.
 - Real imported protocols: runc.run `8493` rows; RaceResult/Grom `268` rows.
 
 ## 7. Working Rules For Future Chats
@@ -109,14 +110,15 @@
 
 ## 8. Next Steps
 
-1. Run a real Telegram onboarding/result/moderation test.
-2. Attach `plansporta.ru` and `www.plansporta.ru` to Vercel, then switch DNS after confirmation.
-3. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
-4. Add Telegram notification retry processing and connect broadcasts.
-5. Match imported protocol rows to submissions automatically.
-6. Optionally configure SMTP for legacy athlete web login.
-7. Continue the separate visual design and polish phase.
-8. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, creating one dedicated `codex/airtable-*` branch and Draft PR per card; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
+1. Enter real competitions and athletes through `/cabinet`.
+2. Run a real Telegram onboarding/result/moderation test.
+3. Attach `plansporta.ru` and `www.plansporta.ru` to Vercel, then switch DNS after confirmation.
+4. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
+5. Add Telegram notification retry processing and connect broadcasts.
+6. Match imported protocol rows to submissions automatically.
+7. Optionally configure SMTP for legacy athlete web login.
+8. Continue the separate visual design and polish phase.
+9. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, creating one dedicated `codex/airtable-*` branch and Draft PR per card; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
 
 ## 9. Decision Log
 
@@ -133,6 +135,7 @@
 - `2026-06-23`: `/cabinet` became the canonical administrator workspace; legacy `/admin/*` routes were reduced to compatibility redirects.
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
+- `2026-06-24`: generated demo athletes, demo submissions/results and demo competitions were deleted from Supabase so real data can be entered through the admin panel.
 - `2026-06-24`: admin competition creation now supports multiple distances with a separate protocol URL/import per distance.
 - `2026-06-24`: Telegram athlete full-name parsing now treats input as `Имя Фамилия` and can match existing active athletes with swapped first/last names before creating a new profile.
 - `2026-06-24`: public leaderboard filters became compact, auto-applying URL filters with a reset action shown only when filters are active.

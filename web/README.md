@@ -53,13 +53,18 @@ npm run admin:hash-password -- "strong-admin-password"
 
 Put the printed value into `ADMIN_PASSWORD_HASH` and set `ADMIN_EMAIL`. `ADMIN_ACCESS_KEY` now acts only as a temporary fallback for local/dev access if the stronger credentials are not configured yet.
 
-Optional demo data:
+Optional local/dev demo data:
 
 ```bash
 npm run db:seed:demo
 ```
 
-The demo seed is safe to rerun. It upserts the demo athletes, events, submissions, verified results, and recalculated rankings instead of wiping the whole database.
+The demo seed is safe to rerun in a test environment. It upserts demo athletes, events, submissions, verified results, and recalculated rankings instead of wiping the whole database. To preview or remove the known demo dataset:
+
+```bash
+npm run db:clear:demo
+npm run db:clear:demo -- --apply
+```
 
 ## Database Commands
 
@@ -79,6 +84,7 @@ npm run prisma:validate:postgres
 npm run db:baseline:postgres
 npm run db:smoke:postgres
 npm run db:seed:demo
+npm run db:clear:demo
 npm run db:check:cyclon-migration
 ```
 
@@ -86,7 +92,8 @@ What these PostgreSQL commands do:
 - validate that the canonical Prisma datamodel is PostgreSQL-compatible;
 - generate `prisma/postgres/baseline.sql` as an initial SQL snapshot from the canonical schema;
 - run a minimal PostgreSQL runtime smoke check with `@prisma/adapter-pg`;
-- seed or refresh the demo snapshot in a non-destructive way.
+- seed or refresh the demo snapshot in a non-destructive way;
+- preview or remove the known demo snapshot without touching imported protocol rows.
 
 If Prisma migrate cannot work through a Supabase session pooler, the project has
 a transaction-safe fallback for the single Cyclon migration:
@@ -117,7 +124,7 @@ processing from repeated Telegram delivery.
 Current limitation:
 - the legacy athlete magic-link login requires a real SMTP provider;
 - hosted deploy still needs final production env values and a full browser-level smoke test;
-- demo seed is idempotent for the current fixture set, but it does not intentionally remove obsolete demo rows if the fixture list changes later.
+- demo seed is a CLI-only dev/test helper; use `npm run db:clear:demo` to preview cleanup before applying it.
 
 ## Environment
 

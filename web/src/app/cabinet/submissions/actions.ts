@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { reviewSubmission, seedDemoScenario } from "@/lib/db";
+import { reviewSubmission } from "@/lib/db";
 import { clearAdminSession, hasAdminSession } from "@/lib/session";
 import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
 
