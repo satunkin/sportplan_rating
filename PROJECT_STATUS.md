@@ -53,18 +53,21 @@
 
 - Safe additive schema and data backfill from existing events to competitions/distances.
 - Public top-10 rating with two columns and one expandable athlete row per column.
-- Full rating with desktop columns, mobile gender tabs, search, age-group/club/coach filters and 50-item pagination.
+- Full rating with desktop columns, mobile gender tabs, compact auto-applying search, age-group/club/coach filters, reset action and 50-item pagination.
 - Expanded rows show all results, top-three status, clubs, coaches and consented Telegram username.
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
-- Admin competition editing supports multiple distances, separate URLs, series and protocol-group benchmark overrides; multi-distance creation with a separate protocol per distance remains pending.
+- Admin competition creation and editing support multiple distances, separate protocol URLs per distance, series and protocol-group benchmark overrides.
 - Admin club/coach directory with archive/restore.
+- Admin athlete archive/restore controls are available from the athletes list and the athlete detail card.
+- Admin athlete creation no longer requires email, password or patronymic and can store an optional Telegram username for future linking.
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
 - Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
 - Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Moderation queue now uses compact one-row submission entries with quick approve/reject actions and expandable detailed editing per submission.
-- Telegram bot menu, onboarding, safe profile-link requests, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
+- Moderation quick approve/reject actions now give inline pending/success feedback and remove the reviewed row from the queue without a full page reload.
+- Telegram bot menu, onboarding, `Имя Фамилия` profile-name parsing, safe profile-link requests including swapped name-order matches, result submission, unknown competition proposals, profile editing, personal ranking, result update/delete requests and duplicate protection.
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
@@ -80,7 +83,6 @@
 
 ## 5. Open Gaps
 
- - Four Airtable cards completed only in isolated worktrees were returned to `Todo` for verified reimplementation on current `main`: inline moderation feedback, athlete archive controls, Telegram-first admin athlete creation and multi-distance competition creation.
 - Live Telegram chat has not been tested yet.
 - Telegram club/coach flow currently submits a new proposal by name; choosing an existing directory item inside the bot is not yet implemented.
 - Admin proposal merging uses a target entity ID field; searchable merge UI remains future UX work.
@@ -134,3 +136,6 @@
 - `2026-06-23`: Airtable delivery switched to review-first Pull Requests: the worker may push only a dedicated branch and create a Draft PR, while a separate monitor sets `Done` only after manual merge into `main`.
 - `2026-06-23`: moderation backlog card `recqqbCo0cL4fHzu3` was reimplemented on current `main` as compact review rows with expandable detailed editing.
 - `2026-06-24`: generated demo athletes, demo submissions/results and demo competitions were deleted from Supabase so real data can be entered through the admin panel.
+- `2026-06-24`: admin competition creation now supports multiple distances with a separate protocol URL/import per distance.
+- `2026-06-24`: Telegram athlete full-name parsing now treats input as `Имя Фамилия` and can match existing active athletes with swapped first/last names before creating a new profile.
+- `2026-06-24`: public leaderboard filters became compact, auto-applying URL filters with a reset action shown only when filters are active.

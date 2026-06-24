@@ -40,8 +40,8 @@ function splitFullName(value: string) {
   const parts = value.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
 
   return {
-    lastName: parts[0] ?? "",
-    firstName: parts[1] ?? parts[0] ?? "",
+    firstName: parts[0] ?? "",
+    lastName: parts[1] ?? "",
     middleName: parts.slice(2).join(" ") || null,
   };
 }
@@ -55,6 +55,38 @@ function getDisplayName(athlete: {
     athlete.publicDisplayName?.trim() ||
     `${athlete.firstName} ${athlete.lastName}`.trim()
   );
+}
+
+async function findActiveTelegramLinkCandidate(params: {
+  birthDate: Date;
+  firstName: string;
+  lastName: string;
+}) {
+  const baseWhere = {
+    birthDate: params.birthDate,
+    status: EntityStatus.ACTIVE,
+    user: { telegramId: null },
+  };
+
+  const exactCandidate = await prisma.athlete.findFirst({
+    where: {
+      ...baseWhere,
+      firstName: { equals: params.firstName, mode: "insensitive" },
+      lastName: { equals: params.lastName, mode: "insensitive" },
+    },
+  });
+
+  if (exactCandidate) {
+    return exactCandidate;
+  }
+
+  return prisma.athlete.findFirst({
+    where: {
+      ...baseWhere,
+      firstName: { equals: params.lastName, mode: "insensitive" },
+      lastName: { equals: params.firstName, mode: "insensitive" },
+    },
+  });
 }
 
 async function ensureCyclonSeason() {
@@ -103,14 +135,10 @@ export async function registerTelegramAthlete(input: TelegramProfileInput) {
     return { status: "linked" as const, user: existingTelegramUser };
   }
 
-  const candidate = await prisma.athlete.findFirst({
-    where: {
-      firstName: { equals: names.firstName, mode: "insensitive" },
-      lastName: { equals: names.lastName, mode: "insensitive" },
-      birthDate,
-      status: EntityStatus.ACTIVE,
-      user: { telegramId: null },
-    },
+  const candidate = await findActiveTelegramLinkCandidate({
+    birthDate,
+    firstName: names.firstName,
+    lastName: names.lastName,
   });
 
   if (candidate) {
@@ -766,6 +794,13 @@ async function resolveSeries(name?: string) {
   });
 }
 
+type AdminCompetitionDistanceInput = {
+  discipline?: string;
+  distanceLabel?: string;
+  protocolUrl?: string;
+  categoryId?: string | null;
+};
+
 export async function createAdminCompetition(input: {
   name: string;
   eventDate: string;
@@ -774,13 +809,36 @@ export async function createAdminCompetition(input: {
   pageUrl?: string;
   registrationUrl?: string;
   resultsUrl?: string;
-  discipline: string;
-  distanceLabel: string;
+  discipline?: string;
+  distanceLabel?: string;
   protocolUrl?: string;
   categoryId?: string | null;
+  distances?: AdminCompetitionDistanceInput[];
 }) {
   const series = await resolveSeries(input.seriesName);
   const eventDate = new Date(`${input.eventDate}T09:00:00.000Z`);
+  const rawDistances = input.distances?.length
+    ? input.distances
+    : [
+        {
+          discipline: input.discipline,
+          distanceLabel: input.distanceLabel,
+          protocolUrl: input.protocolUrl,
+          categoryId: input.categoryId,
+        },
+      ];
+  const distances = rawDistances
+    .map((distance) => ({
+      discipline: distance.discipline?.trim() || "RUNNING",
+      distanceLabel: distance.distanceLabel?.trim() || "",
+      protocolUrl: distance.protocolUrl?.trim() || null,
+      categoryId: distance.categoryId ?? input.categoryId ?? null,
+    }))
+    .filter((distance) => distance.distanceLabel);
+
+  if (!distances.length) {
+    throw new Error("COMPETITION_DISTANCE_REQUIRED");
+  }
 
   const competition = await prisma.competition.create({
     data: {
@@ -792,30 +850,31 @@ export async function createAdminCompetition(input: {
       registrationUrl: input.registrationUrl?.trim() || null,
       resultsUrl: input.resultsUrl?.trim() || null,
       distances: {
-        create: {
+        create: distances.map((distance) => ({
           name: input.name.trim(),
           eventDate,
           location: input.city?.trim() || null,
-          discipline: input.discipline as never,
-          distanceLabel: input.distanceLabel.trim(),
-          sourceUrl: input.protocolUrl?.trim() || null,
-          categoryId: input.categoryId ?? null,
-        },
+          discipline: distance.discipline as never,
+          distanceLabel: distance.distanceLabel,
+          sourceUrl: distance.protocolUrl,
+          categoryId: distance.categoryId,
+        })),
       },
     },
     include: { distances: true },
   });
 
-  const distance = competition.distances[0];
-  if (distance?.sourceUrl) {
-    await importProtocolForEvent({
-      eventId: distance.id,
-      sourceUrl: distance.sourceUrl,
-      eventName: competition.name,
-      eventDate: competition.eventDate,
-      location: competition.city,
-      distanceLabel: distance.distanceLabel,
-    });
+  for (const distance of competition.distances) {
+    if (distance.sourceUrl) {
+      await importProtocolForEvent({
+        eventId: distance.id,
+        sourceUrl: distance.sourceUrl,
+        eventName: competition.name,
+        eventDate: competition.eventDate,
+        location: competition.city,
+        distanceLabel: distance.distanceLabel,
+      });
+    }
   }
 
   return competition;
@@ -1135,6 +1194,7 @@ export async function reviewAthleteLinkRequest(params: {
   }
 
   const profile = asJsonObject(request.profileJson);
+  const names = splitFullName(String(profile.fullName ?? ""));
   await prisma.$transaction([
     prisma.user.update({
       where: { id: request.candidateAthlete.userId },
@@ -1143,6 +1203,12 @@ export async function reviewAthleteLinkRequest(params: {
     prisma.athlete.update({
       where: { id: request.candidateAthlete.id },
       data: {
+        firstName: names.firstName || request.candidateAthlete.firstName,
+        lastName: names.lastName || request.candidateAthlete.lastName,
+        middleName:
+          names.firstName && names.lastName
+            ? names.middleName
+            : request.candidateAthlete.middleName,
         telegramUsername: request.telegramUsername,
         showTelegramProfile: Boolean(profile.showTelegramProfile),
       },

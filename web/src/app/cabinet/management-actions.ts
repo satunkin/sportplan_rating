@@ -36,6 +36,22 @@ function refreshPublicAndAdmin() {
   revalidatePath("/cabinet/submissions");
 }
 
+function collectCompetitionDistances(formData: FormData) {
+  const disciplines = formData.getAll("distanceDiscipline").map(String);
+  const labels = formData.getAll("distanceLabel").map(String);
+  const protocolUrls = formData.getAll("distanceProtocolUrl").map(String);
+
+  return labels
+    .map((distanceLabel, index) => ({
+      discipline:
+        disciplines[index] || String(formData.get("discipline") ?? ""),
+      distanceLabel,
+      protocolUrl:
+        protocolUrls[index] || String(formData.get("protocolUrl") ?? ""),
+    }))
+    .filter((distance) => distance.distanceLabel.trim());
+}
+
 export async function createCompetition(formData: FormData) {
   await requireAdmin();
   const competition = await createAdminCompetition({
@@ -49,6 +65,7 @@ export async function createCompetition(formData: FormData) {
     discipline: String(formData.get("discipline") ?? ""),
     distanceLabel: String(formData.get("distanceLabel") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
+    distances: collectCompetitionDistances(formData),
   });
   refreshPublicAndAdmin();
   redirect(`/cabinet/competitions/${competition.id}/edit`);

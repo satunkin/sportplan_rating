@@ -5,10 +5,10 @@ import {
   createCompetition,
   setCompetitionArchived,
 } from "@/app/cabinet/management-actions";
+import { CompetitionCreateForm } from "@/app/cabinet/competitions/competition-create-form";
 import { listAdminCompetitions } from "@/lib/cyclon-service";
 import { hasAdminSession } from "@/lib/session";
 import { formatDate } from "@/lib/time";
-import { Discipline } from "@prisma/client";
 
 export default async function AdminEventsPage() {
   if (!(await hasAdminSession())) redirect("/cabinet/admin-login");
@@ -31,34 +31,7 @@ export default async function AdminEventsPage() {
             <h2 className="text-2xl font-medium text-foreground">
               Новое соревнование
             </h2>
-            <form action={createCompetition} className="mt-5 grid gap-3">
-              <input className="min-h-11 border border-border px-3" name="name" placeholder="Название" required />
-              <input className="min-h-11 border border-border px-3" name="eventDate" required type="date" />
-              <input className="min-h-11 border border-border px-3" name="city" placeholder="Город" />
-              <input className="min-h-11 border border-border px-3" name="seriesName" placeholder="Серия, если есть" />
-              <input className="min-h-11 border border-border px-3" name="pageUrl" placeholder="Официальная страница" type="url" />
-              <input className="min-h-11 border border-border px-3" name="registrationUrl" placeholder="Регистрация" type="url" />
-              <input className="min-h-11 border border-border px-3" name="resultsUrl" placeholder="Страница результатов" type="url" />
-              <div className="mt-2 border-t border-border pt-4">
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Первая дистанция
-                </p>
-                <div className="grid gap-3">
-                  <select className="min-h-11 border border-border px-3" name="discipline">
-                    {Object.values(Discipline).map((discipline) => (
-                      <option key={discipline} value={discipline}>
-                        {discipline}
-                      </option>
-                    ))}
-                  </select>
-                  <input className="min-h-11 border border-border px-3" name="distanceLabel" placeholder="Дистанция" required />
-                  <input className="min-h-11 border border-border px-3" name="protocolUrl" placeholder="Ссылка на протокол" type="url" />
-                </div>
-              </div>
-              <button className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white" type="submit">
-                Создать
-              </button>
-            </form>
+            <CompetitionCreateForm action={createCompetition} />
           </article>
 
           <section className="border border-border bg-white">

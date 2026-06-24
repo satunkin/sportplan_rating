@@ -4,7 +4,10 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { Discipline, Gender } from "@prisma/client";
 
-import { validateAthleteProfile, type AthleteGender } from "@/lib/athlete-profile";
+import {
+  validateAdminAthleteProfile,
+  type AthleteGender,
+} from "@/lib/athlete-profile";
 import {
   createAdminAccount,
   createAdminManagedEvent,
@@ -14,6 +17,7 @@ import {
   deleteAthleteAccount,
   deleteSubmissionByAdmin,
   deleteSubmissionForUser,
+  setAthleteArchiveStatusByAdmin,
   updateAdminManagedEvent,
   updateAthleteByAdmin,
   updateAthletePublicProfile,
@@ -212,23 +216,20 @@ export async function removeCompetitionCard(formData: FormData) {
 export async function createAthleteUserByAdmin(formData: FormData) {
   await requireAdminSession();
 
-  const validation = validateAthleteProfile({
+  const validation = validateAdminAthleteProfile({
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
-    middleName: String(formData.get("middleName") ?? ""),
-    email: String(formData.get("email") ?? ""),
     city: String(formData.get("city") ?? ""),
     birthDate: String(formData.get("birthDate") ?? ""),
     gender: String(formData.get("gender") ?? "") as AthleteGender,
+    telegramUsername: String(formData.get("telegramUsername") ?? ""),
   });
 
-  const password = String(formData.get("password") ?? "");
-
-  if (!validation.success || password.trim().length < 8) {
+  if (!validation.success) {
     redirect("/cabinet/athletes?adminError=athlete_create_invalid");
   }
 
-  await createAthleteByAdmin(validation.data, password);
+  await createAthleteByAdmin(validation.data);
   revalidateAppShell();
   redirect("/cabinet/athletes");
 }
@@ -271,6 +272,18 @@ export async function saveAthleteByAdmin(formData: FormData) {
 
   revalidateAppShell();
   redirect(`/cabinet/athletes/${athleteId}`);
+}
+
+export async function changeAthleteArchiveStatusByAdmin(formData: FormData) {
+  await requireAdminSession();
+
+  const athleteId = String(formData.get("athleteId") ?? "");
+  const restore = String(formData.get("restore") ?? "") === "true";
+  const redirectTo = String(formData.get("redirectTo") ?? "") || "/cabinet/athletes";
+
+  await setAthleteArchiveStatusByAdmin(athleteId, restore);
+  revalidateAppShell();
+  redirect(redirectTo);
 }
 
 export async function addAthleteSubmissionByAdmin(formData: FormData) {

@@ -22,6 +22,7 @@ import {
 } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
 import { formatDate, formatDurationFromSeconds } from "@/lib/time";
+import { InlineReviewCard } from "./inline-review-card";
 
 export default async function AdminSubmissionsPage({
   searchParams,
@@ -142,10 +143,9 @@ export default async function AdminSubmissionsPage({
               const isExpanded = submissionId === submission.id;
 
               return (
-                <article
-                  id={`submission-${submission.id}`}
+                <InlineReviewCard
+                  articleId={`submission-${submission.id}`}
                   key={submission.id}
-                  className="rounded-[1.5rem] border border-border bg-white/80"
                 >
                   <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1.1fr_1.5fr_0.9fr_0.9fr_1fr] lg:items-start lg:px-6">
                     <div>
@@ -204,7 +204,7 @@ export default async function AdminSubmissionsPage({
                       >
                         {isExpanded ? "Свернуть" : "Редактировать"}
                       </Link>
-                      <form action={rejectSubmission}>
+                      <form action={rejectSubmission} data-inline-review="reject">
                         <input name="submissionId" type="hidden" value={submission.id} />
                         <input name="notes" type="hidden" value="" />
                         <button
@@ -214,7 +214,7 @@ export default async function AdminSubmissionsPage({
                           Отклонить
                         </button>
                       </form>
-                      <form action={approveSubmission}>
+                      <form action={approveSubmission} data-inline-review="approve">
                         <input name="submissionId" type="hidden" value={submission.id} />
                         <input
                           name="categoryKey"
@@ -508,7 +508,7 @@ export default async function AdminSubmissionsPage({
                       </div>
                     </div>
                   ) : null}
-                </article>
+                </InlineReviewCard>
               );
             })}
           </div>
