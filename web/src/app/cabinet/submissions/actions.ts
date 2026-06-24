@@ -242,13 +242,6 @@ export async function rejectSubmissionInline(
   return { ok: true };
 }
 
-export async function seedDemoData() {
-  await requireAdminSession();
-
-  await seedDemoScenario();
-  revalidateModerationViews();
-}
-
 export async function logoutAdmin() {
   await clearAdminSession();
   redirect("/cabinet/admin-login");
