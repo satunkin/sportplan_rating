@@ -8,6 +8,7 @@ export type NormalizedProtocolRow = {
   clubRaw?: string | null;
   country?: string | null;
   genderRaw?: string | null;
+  distanceLabelRaw?: string | null;
   paceRaw?: string | null;
   placeStatusRaw?: string | null;
   placeAgeGroup?: number | null;

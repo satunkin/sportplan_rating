@@ -59,12 +59,16 @@
 - Public competition index split into future/past and competition detail grouped by distance.
 - Public club and coach cards for active 2026 ranking participants.
 - Admin competition creation and editing support multiple distances, separate protocol URLs per distance, series and protocol-group benchmark overrides.
+- Admin competition/distance protocol import now also accepts uploaded XLS/XLSX/CSV files, parses participant/time/group columns, stores protocol rows and rebuilds fifth-place `ProtocolGroup` benchmarks. PDF upload is visible in the UI but currently returns a controlled unsupported-parser error until a production PDF parser is added.
 - Admin club/coach directory with archive/restore.
 - Admin athlete archive/restore controls are available from the athletes list and the athlete detail card.
 - Admin athlete creation no longer requires email, password or patronymic and can store an optional Telegram username for future linking.
 - Athlete admin form supports birth date, gender, Telegram visibility, multiple clubs and multiple coaches.
 - Admin login uses user-facing Russian copy and no longer exposes environment-variable names or the active authentication mode.
 - Administrator pages and actions use `/cabinet/*`; legacy `/admin/*` URLs only redirect to their `/cabinet/*` replacements.
+- The old `/login` athlete entry page redirects to `/cabinet/admin-login`; the unauthenticated `/cabinet` “Войти” button points directly to `/cabinet/admin-login`.
+- Admin dashboard summary counts and quick lists exclude archived competitions/distances and archived athletes.
+- Admin athlete list shows active athletes by default and exposes archived athletes only through an expandable `Архив` view with restore controls.
 - Admin dashboard summary cards, competition cards, moderation items and athlete cards link to their corresponding sections or detail pages with keyboard-visible focus states.
 - Moderation supports create/update/delete submission types while preserving old verified results until approval.
 - Moderation queue now uses compact one-row submission entries with quick approve/reject actions and expandable detailed editing per submission.

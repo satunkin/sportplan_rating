@@ -15,7 +15,11 @@ import {
   getSeasonAge,
 } from "@/lib/age-group";
 import { prisma } from "@/lib/prisma";
-import { importProtocolForEvent } from "@/lib/protocol-import/import-source-protocol";
+import {
+  importProtocolForEvent,
+  persistNormalizedProtocolForEvent,
+} from "@/lib/protocol-import/import-source-protocol";
+import { parseNormalizedProtocolFromUploadedFile } from "@/lib/protocol-import/parser-runtime.mjs";
 import { parseTimeToSeconds } from "@/lib/time";
 
 export type TelegramProfileInput = {
@@ -798,8 +802,84 @@ type AdminCompetitionDistanceInput = {
   discipline?: string;
   distanceLabel?: string;
   protocolUrl?: string;
+  protocolFile?: UploadedProtocolFileInput | null;
   categoryId?: string | null;
 };
+
+export type UploadedProtocolFileInput = {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+};
+
+function hasProtocolFile(
+  file: UploadedProtocolFileInput | null | undefined,
+): file is UploadedProtocolFileInput {
+  return Boolean(file?.buffer.length);
+}
+
+async function importUploadedProtocolForEvent(params: {
+  eventId: string;
+  file: UploadedProtocolFileInput;
+  eventName: string;
+  eventDate: Date;
+  location?: string | null;
+  distanceLabel: string;
+}) {
+  const protocol = parseNormalizedProtocolFromUploadedFile({
+    buffer: params.file.buffer,
+    fileName: params.file.fileName,
+    mimeType: params.file.mimeType,
+    eventName: params.eventName,
+    eventDate: params.eventDate.toISOString().slice(0, 10),
+    location: params.location ?? null,
+    distanceLabel: params.distanceLabel,
+  });
+
+  return persistNormalizedProtocolForEvent({
+    eventId: params.eventId,
+    protocol,
+    distanceLabel: params.distanceLabel,
+  });
+}
+
+async function importUploadedCompetitionProtocol(params: {
+  competition: {
+    name: string;
+    eventDate: Date;
+    city: string | null;
+  };
+  distances: Array<{
+    id: string;
+    distanceLabel: string;
+  }>;
+  file: UploadedProtocolFileInput;
+}) {
+  const protocol = parseNormalizedProtocolFromUploadedFile({
+    buffer: params.file.buffer,
+    fileName: params.file.fileName,
+    mimeType: params.file.mimeType,
+    eventName: params.competition.name,
+    eventDate: params.competition.eventDate.toISOString().slice(0, 10),
+    location: params.competition.city,
+    distanceLabel: "",
+  });
+  const hasDistanceColumn = protocol.rows.some((row) =>
+    row.distanceLabelRaw?.trim(),
+  );
+
+  if (params.distances.length > 1 && !hasDistanceColumn) {
+    throw new Error("PROTOCOL_FILE_DISTANCE_COLUMN_REQUIRED");
+  }
+
+  for (const distance of params.distances) {
+    await persistNormalizedProtocolForEvent({
+      eventId: distance.id,
+      protocol,
+      distanceLabel: hasDistanceColumn ? distance.distanceLabel : null,
+    });
+  }
+}
 
 export async function createAdminCompetition(input: {
   name: string;
@@ -812,6 +892,8 @@ export async function createAdminCompetition(input: {
   discipline?: string;
   distanceLabel?: string;
   protocolUrl?: string;
+  protocolFile?: UploadedProtocolFileInput | null;
+  competitionProtocolFile?: UploadedProtocolFileInput | null;
   categoryId?: string | null;
   distances?: AdminCompetitionDistanceInput[];
 }) {
@@ -824,6 +906,7 @@ export async function createAdminCompetition(input: {
           discipline: input.discipline,
           distanceLabel: input.distanceLabel,
           protocolUrl: input.protocolUrl,
+          protocolFile: input.protocolFile,
           categoryId: input.categoryId,
         },
       ];
@@ -832,6 +915,7 @@ export async function createAdminCompetition(input: {
       discipline: distance.discipline?.trim() || "RUNNING",
       distanceLabel: distance.distanceLabel?.trim() || "",
       protocolUrl: distance.protocolUrl?.trim() || null,
+      protocolFile: distance.protocolFile ?? null,
       categoryId: distance.categoryId ?? input.categoryId ?? null,
     }))
     .filter((distance) => distance.distanceLabel);
@@ -864,8 +948,35 @@ export async function createAdminCompetition(input: {
     include: { distances: true },
   });
 
+  const competitionProtocolFile = input.competitionProtocolFile;
+  const hasCompetitionProtocolFile = hasProtocolFile(competitionProtocolFile);
+
+  if (hasCompetitionProtocolFile) {
+    await importUploadedCompetitionProtocol({
+      competition,
+      distances: competition.distances,
+      file: competitionProtocolFile,
+    });
+  }
+
   for (const distance of competition.distances) {
-    if (distance.sourceUrl) {
+    const distanceInput = distances.find(
+      (item) => item.distanceLabel === distance.distanceLabel,
+    );
+
+    if (hasProtocolFile(distanceInput?.protocolFile)) {
+      await importUploadedProtocolForEvent({
+        eventId: distance.id,
+        file: distanceInput.protocolFile,
+        eventName: competition.name,
+        eventDate: competition.eventDate,
+        location: competition.city,
+        distanceLabel: distance.distanceLabel,
+      });
+      continue;
+    }
+
+    if (!hasCompetitionProtocolFile && distance.sourceUrl) {
       await importProtocolForEvent({
         eventId: distance.id,
         sourceUrl: distance.sourceUrl,
@@ -926,6 +1037,7 @@ export async function addAdminCompetitionDistance(
     discipline: string;
     distanceLabel: string;
     protocolUrl?: string;
+    protocolFile?: UploadedProtocolFileInput | null;
     categoryId?: string | null;
   },
 ) {
@@ -947,7 +1059,16 @@ export async function addAdminCompetitionDistance(
     },
   });
 
-  if (event.sourceUrl) {
+  if (hasProtocolFile(input.protocolFile)) {
+    await importUploadedProtocolForEvent({
+      eventId: event.id,
+      file: input.protocolFile,
+      eventName: competition.name,
+      eventDate: competition.eventDate,
+      location: competition.city,
+      distanceLabel: event.distanceLabel,
+    });
+  } else if (event.sourceUrl) {
     await importProtocolForEvent({
       eventId: event.id,
       sourceUrl: event.sourceUrl,
@@ -959,6 +1080,28 @@ export async function addAdminCompetitionDistance(
   }
 
   return event;
+}
+
+export async function importAdminCompetitionDistanceProtocol(
+  eventId: string,
+  file: UploadedProtocolFileInput,
+) {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: { competition: true },
+  });
+  if (!event?.competition) throw new Error("COMPETITION_DISTANCE_NOT_FOUND");
+
+  await importUploadedProtocolForEvent({
+    eventId: event.id,
+    file,
+    eventName: event.competition.name,
+    eventDate: event.competition.eventDate,
+    location: event.competition.city,
+    distanceLabel: event.distanceLabel,
+  });
+
+  return event.competitionId;
 }
 
 export async function updateProtocolGroupBenchmark(input: {

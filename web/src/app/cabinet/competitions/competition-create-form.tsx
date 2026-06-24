@@ -27,7 +27,7 @@ export function CompetitionCreateForm({ action }: CompetitionCreateFormProps) {
   ]);
 
   return (
-    <form action={action} className="mt-5 grid gap-3">
+    <form action={action} className="mt-5 grid gap-3" encType="multipart/form-data">
       <input
         className="min-h-11 border border-border px-3"
         name="name"
@@ -68,6 +68,15 @@ export function CompetitionCreateForm({ action }: CompetitionCreateFormProps) {
         placeholder="Страница результатов"
         type="url"
       />
+      <label className="grid gap-2 text-sm font-medium text-foreground">
+        Файл протокола всего соревнования
+        <input
+          accept=".xls,.xlsx,.csv,.pdf"
+          className="min-h-11 border border-border px-3 py-2 text-sm"
+          name="competitionProtocolFile"
+          type="file"
+        />
+      </label>
 
       <fieldset className="mt-2 grid gap-3 border-t border-border pt-4">
         <legend className="text-sm font-semibold text-foreground">
@@ -118,6 +127,15 @@ export function CompetitionCreateForm({ action }: CompetitionCreateFormProps) {
               placeholder="Ссылка на протокол"
               type="url"
             />
+            <label className="grid gap-2 text-sm font-medium text-foreground">
+              Файл протокола дистанции
+              <input
+                accept=".xls,.xlsx,.csv,.pdf"
+                className="min-h-11 border border-border px-3 py-2 text-sm"
+                name="distanceProtocolFile"
+                type="file"
+              />
+            </label>
           </div>
         ))}
         <button

@@ -24,7 +24,7 @@ import {
 } from "@/lib/db";
 import { hasAdminSession, getAthleteUserSession } from "@/lib/session";
 import { formatDate } from "@/lib/time";
-import { Discipline } from "@prisma/client";
+import { Discipline, EntityStatus } from "@prisma/client";
 
 function formatDisciplineLabel(value: Discipline) {
   if (value === Discipline.RUNNING) return "Бег";
@@ -58,8 +58,10 @@ export default async function CabinetPage({
       listAdminUsers(),
     ]);
 
-    const upcomingEvents = events.filter((event) => !event.isPast).slice(0, 6);
-    const pastEvents = events.filter((event) => event.isPast).slice(0, 6);
+    const activeEvents = events.filter((event) => event.status === EntityStatus.ACTIVE);
+    const activeAthletes = athletes.filter((athlete) => athlete.status === EntityStatus.ACTIVE);
+    const upcomingEvents = activeEvents.filter((event) => !event.isPast).slice(0, 6);
+    const pastEvents = activeEvents.filter((event) => event.isPast).slice(0, 6);
 
     return (
       <main className="page-shell min-h-screen px-6 py-10 sm:px-10 lg:px-12">
@@ -116,7 +118,7 @@ export default async function CabinetPage({
             >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">Соревнований</p>
               <div className="mt-2 flex items-end justify-between gap-3">
-                <p className="text-3xl font-semibold text-accent-strong">{events.length}</p>
+                <p className="text-3xl font-semibold text-accent-strong">{activeEvents.length}</p>
                 <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
               </div>
             </Link>
@@ -126,7 +128,7 @@ export default async function CabinetPage({
             >
               <p className="text-sm uppercase tracking-[0.18em] text-muted">Спортсменов</p>
               <div className="mt-2 flex items-end justify-between gap-3">
-                <p className="text-3xl font-semibold text-accent-strong">{athletes.length}</p>
+                <p className="text-3xl font-semibold text-accent-strong">{activeAthletes.length}</p>
                 <span aria-hidden="true" className="text-lg text-accent transition-transform group-hover:translate-x-1">→</span>
               </div>
             </Link>
@@ -356,7 +358,7 @@ export default async function CabinetPage({
                 </h2>
               </div>
               <div className="mt-6 grid gap-3">
-                {athletes.slice(0, 10).map((athlete) => (
+                {activeAthletes.slice(0, 10).map((athlete) => (
                   <Link
                     className="group rounded-[1.5rem] border border-border bg-white/75 px-5 py-4 transition hover:border-accent/40 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     href={`/cabinet/athletes/${athlete.id}`}
@@ -432,7 +434,7 @@ export default async function CabinetPage({
             Войдите или зарегистрируйтесь, чтобы управлять результатами и публичной карточкой спортсмена.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong" href="/login">
+            <Link className="inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-strong" href="/cabinet/admin-login">
               Войти
             </Link>
             <Link className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-white/80 px-6 py-3 text-base font-semibold text-accent-strong transition hover:bg-white" href="/register">

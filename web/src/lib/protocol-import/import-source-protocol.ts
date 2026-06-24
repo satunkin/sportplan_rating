@@ -3,7 +3,10 @@ import { BenchmarkSource, type Gender } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { fetchNormalizedProtocolFromSource } from "@/lib/protocol-import/parser-runtime.mjs";
 import { parseTimeToSeconds } from "@/lib/time";
-import type { NormalizedProtocolRow } from "@/lib/protocol-import/types";
+import type {
+  NormalizedEventProtocol,
+  NormalizedProtocolRow,
+} from "@/lib/protocol-import/types";
 
 type SourceProtocolImportSummary = {
   eventId: string;
@@ -54,33 +57,32 @@ function formatEventDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-export async function importProtocolForEvent(params: {
+function normalizeDistanceLabel(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ");
+}
+
+export async function persistNormalizedProtocolForEvent(params: {
   eventId: string;
-  sourceUrl?: string | null;
-  eventName: string;
-  eventDate: Date;
-  location?: string | null;
-  distanceLabel: string;
+  protocol: NormalizedEventProtocol;
+  distanceLabel?: string | null;
 }) {
-  const sourceUrl = params.sourceUrl?.trim();
+  const targetDistanceLabel = normalizeDistanceLabel(params.distanceLabel);
+  const protocolRows = targetDistanceLabel
+    ? params.protocol.rows.filter((row) => {
+        const rowDistanceLabel = normalizeDistanceLabel(row.distanceLabelRaw);
+        return !rowDistanceLabel || rowDistanceLabel === targetDistanceLabel;
+      })
+    : params.protocol.rows;
 
-  if (!sourceUrl) {
-    return null;
+  if (protocolRows.length === 0) {
+    throw new Error("PROTOCOL_FILE_DISTANCE_ROWS_NOT_FOUND");
   }
 
-  const protocol = await fetchNormalizedProtocolFromSource({
-    sourceUrl,
-    eventName: params.eventName,
-    eventDate: formatEventDateInput(params.eventDate),
-    location: params.location ?? null,
-    distanceLabel: params.distanceLabel,
-  });
-
-  if (!protocol) {
-    return null;
-  }
-
-  const rows = protocol.rows.map((row) => ({
+  const rows = protocolRows.map((row) => ({
     athleteNameRaw: row.athleteNameRaw.trim(),
     finishTimeRaw: row.finishTimeRaw.trim(),
     finishTimeSeconds: parseTimeToSeconds(row.finishTimeRaw),
@@ -125,10 +127,10 @@ export async function importProtocolForEvent(params: {
       gender: Gender | null;
       finishTimes: number[];
     } = groupedRows.get(groupKey) ?? {
-        label: row.ageGroupRaw || row.gender || "Открытая группа",
-        gender: row.gender,
-        finishTimes: [],
-      };
+      label: row.ageGroupRaw || row.gender || "Открытая группа",
+      gender: row.gender,
+      finishTimes: [],
+    };
 
     if (row.finishTimeSeconds !== null) {
       group.finishTimes.push(row.finishTimeSeconds);
@@ -161,10 +163,43 @@ export async function importProtocolForEvent(params: {
 
   return {
     eventId: params.eventId,
-    organizer: protocol.organizer,
+    organizer: params.protocol.organizer,
     rowsImported: rows.length,
     rowsWithParsedTime: rows.filter((row) => row.finishTimeSeconds !== null)
       .length,
-    sourceUrl,
+    sourceUrl: params.protocol.sourceUrl,
   } satisfies SourceProtocolImportSummary;
+}
+
+export async function importProtocolForEvent(params: {
+  eventId: string;
+  sourceUrl?: string | null;
+  eventName: string;
+  eventDate: Date;
+  location?: string | null;
+  distanceLabel: string;
+}) {
+  const sourceUrl = params.sourceUrl?.trim();
+
+  if (!sourceUrl) {
+    return null;
+  }
+
+  const protocol = await fetchNormalizedProtocolFromSource({
+    sourceUrl,
+    eventName: params.eventName,
+    eventDate: formatEventDateInput(params.eventDate),
+    location: params.location ?? null,
+    distanceLabel: params.distanceLabel,
+  });
+
+  if (!protocol) {
+    return null;
+  }
+
+  return persistNormalizedProtocolForEvent({
+    eventId: params.eventId,
+    protocol,
+    distanceLabel: params.distanceLabel,
+  });
 }

@@ -7,11 +7,12 @@ import {
 } from "@/app/cabinet/actions";
 import { listAthletesForAdmin } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
+import { EntityStatus } from "@prisma/client";
 
 export default async function AdminAthletesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ adminError?: string; q?: string }>;
+  searchParams: Promise<{ adminError?: string; q?: string; archive?: string }>;
 }) {
   const isAdmin = await hasAdminSession();
 
@@ -19,7 +20,7 @@ export default async function AdminAthletesPage({
     redirect("/cabinet/admin-login");
   }
 
-  const { adminError, q } = await searchParams;
+  const { adminError, q, archive } = await searchParams;
   const athletes = await listAthletesForAdmin();
   const normalizedQuery = q?.trim().toLowerCase() ?? "";
   const filteredAthletes = normalizedQuery
@@ -35,6 +36,81 @@ export default async function AdminAthletesPage({
           .includes(normalizedQuery),
       )
     : athletes;
+  const activeAthletes = filteredAthletes.filter(
+    (athlete) => athlete.status === EntityStatus.ACTIVE,
+  );
+  const archivedAthletes = filteredAthletes.filter(
+    (athlete) => athlete.status === EntityStatus.ARCHIVED,
+  );
+  const showArchive = archive === "1";
+
+  function buildAthletesHref(options: { archive?: boolean } = {}) {
+    const params = new URLSearchParams();
+
+    if (q?.trim()) {
+      params.set("q", q.trim());
+    }
+
+    if (options.archive) {
+      params.set("archive", "1");
+    }
+
+    const query = params.toString();
+    return query ? `/cabinet/athletes?${query}` : "/cabinet/athletes";
+  }
+
+  const currentListHref = buildAthletesHref({ archive: showArchive });
+
+  function renderAthleteRow(
+    athlete: (typeof athletes)[number],
+    redirectTo: string,
+  ) {
+    return (
+      <div
+        className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_180px]"
+        key={athlete.id}
+      >
+        <div className="min-w-0">
+          <p className="truncate text-lg font-semibold text-foreground">
+            {athlete.displayName}
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            {athlete.user.email ?? "email не указан"} ·{" "}
+            {athlete.seasonAgeGroup ?? "группа не указана"} ·{" "}
+            {athlete._count.submissions} заявок ·{" "}
+            {athlete._count.verifiedResults} подтверждено ·{" "}
+            {athlete.status === EntityStatus.ARCHIVED ? "в архиве" : "активен"}
+          </p>
+        </div>
+        <div className="grid gap-2 text-sm md:text-right">
+          <span className="text-muted">
+            Место: {athlete.rankingEntry?.rank ?? "—"}
+          </span>
+          <form action={changeAthleteArchiveStatusByAdmin}>
+            <input name="athleteId" type="hidden" value={athlete.id} />
+            <input
+              name="restore"
+              type="hidden"
+              value={athlete.status === EntityStatus.ARCHIVED ? "true" : "false"}
+            />
+            <input name="redirectTo" type="hidden" value={redirectTo} />
+            <button
+              className="font-semibold text-accent underline-offset-4 hover:underline"
+              type="submit"
+            >
+              {athlete.status === EntityStatus.ARCHIVED ? "Восстановить" : "В архив"}
+            </button>
+          </form>
+          <Link
+            className="font-semibold text-accent underline-offset-4 hover:underline"
+            href={`/cabinet/athletes/${athlete.id}`}
+          >
+            Открыть карточку
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="page-shell min-h-screen">
@@ -129,72 +205,55 @@ export default async function AdminAthletesPage({
               <h2 className="text-2xl font-medium text-foreground">
                 Список участников
               </h2>
-              <form className="flex gap-2" role="search">
-                <input
-                  className="min-h-10 rounded-md border border-border bg-white px-3 text-sm"
-                  defaultValue={q ?? ""}
-                  name="q"
-                  placeholder="Поиск"
-                />
-                <button
-                  className="rounded-md border border-border px-4 text-sm font-semibold text-foreground"
-                  type="submit"
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <form className="flex gap-2" role="search">
+                  {showArchive ? <input name="archive" type="hidden" value="1" /> : null}
+                  <input
+                    className="min-h-10 rounded-md border border-border bg-white px-3 text-sm"
+                    defaultValue={q ?? ""}
+                    name="q"
+                    placeholder="Поиск"
+                  />
+                  <button
+                    className="rounded-md border border-border px-4 text-sm font-semibold text-foreground"
+                    type="submit"
+                  >
+                    Найти
+                  </button>
+                </form>
+                <Link
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-semibold text-foreground transition hover:bg-surface-strong"
+                  href={showArchive ? buildAthletesHref() : buildAthletesHref({ archive: true })}
                 >
-                  Найти
-                </button>
-              </form>
+                  {showArchive ? "Скрыть архив" : `Архив (${archivedAthletes.length})`}
+                </Link>
+              </div>
             </div>
 
             <div className="divide-y divide-border">
-              {filteredAthletes.length === 0 ? (
+              {activeAthletes.length === 0 ? (
                 <div className="px-5 py-8 text-sm text-muted">Ничего не найдено.</div>
               ) : (
-                filteredAthletes.map((athlete) => (
-                  <div
-                    className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_180px]"
-                    key={athlete.id}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold text-foreground">
-                        {athlete.displayName}
-                      </p>
-                      <p className="mt-1 text-sm text-muted">
-                        {athlete.user.email ?? "email не указан"} ·{" "}
-                        {athlete.seasonAgeGroup ?? "группа не указана"} ·{" "}
-                        {athlete._count.submissions} заявок ·{" "}
-                        {athlete._count.verifiedResults} подтверждено ·{" "}
-                        {athlete.status === "ARCHIVED" ? "в архиве" : "активен"}
-                      </p>
-                    </div>
-                    <div className="grid gap-2 text-sm md:text-right">
-                      <span className="text-muted">
-                        Место: {athlete.rankingEntry?.rank ?? "—"}
-                      </span>
-                      <form action={changeAthleteArchiveStatusByAdmin}>
-                        <input name="athleteId" type="hidden" value={athlete.id} />
-                        <input
-                          name="restore"
-                          type="hidden"
-                          value={athlete.status === "ARCHIVED" ? "true" : "false"}
-                        />
-                        <input name="redirectTo" type="hidden" value="/cabinet/athletes" />
-                        <button
-                          className="font-semibold text-accent underline-offset-4 hover:underline"
-                          type="submit"
-                        >
-                          {athlete.status === "ARCHIVED" ? "Восстановить" : "В архив"}
-                        </button>
-                      </form>
-                      <Link
-                        className="font-semibold text-accent underline-offset-4 hover:underline"
-                        href={`/cabinet/athletes/${athlete.id}`}
-                      >
-                        Открыть карточку
-                      </Link>
-                    </div>
-                  </div>
-                ))
+                activeAthletes.map((athlete) => renderAthleteRow(athlete, currentListHref))
               )}
+              {showArchive ? (
+                <section className="bg-surface/50">
+                  <div className="border-b border-border px-5 py-4">
+                    <h3 className="text-xl font-medium text-foreground">Архив</h3>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {archivedAthletes.length === 0 ? (
+                      <div className="px-5 py-8 text-sm text-muted">
+                        В архиве ничего не найдено.
+                      </div>
+                    ) : (
+                      archivedAthletes.map((athlete) =>
+                        renderAthleteRow(athlete, buildAthletesHref({ archive: true })),
+                      )
+                    )}
+                  </div>
+                </section>
+              ) : null}
             </div>
           </article>
         </section>

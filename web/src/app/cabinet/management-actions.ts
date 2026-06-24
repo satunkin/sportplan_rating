@@ -10,12 +10,14 @@ import {
   archiveCompetition,
   createAdminCompetition,
   createDirectoryEntity,
+  importAdminCompetitionDistanceProtocol,
   rejectEntityProposal,
   restoreCompetition,
   reviewAthleteLinkRequest,
   setDirectoryEntityStatus,
   updateAdminCompetition,
   updateProtocolGroupBenchmark,
+  type UploadedProtocolFileInput,
 } from "@/lib/cyclon-service";
 import { ensureAdminUser } from "@/lib/db";
 import { PUBLIC_DATA_CACHE_TAG } from "@/lib/public-cache";
@@ -52,6 +54,56 @@ function collectCompetitionDistances(formData: FormData) {
     .filter((distance) => distance.distanceLabel.trim());
 }
 
+function readUploadedProtocolFileSync(value: FormDataEntryValue) {
+  if (!(value instanceof File) || !value.name || value.size === 0) {
+    return null;
+  }
+
+  return value;
+}
+
+async function readUploadedProtocolFile(
+  value: FormDataEntryValue | null,
+): Promise<UploadedProtocolFileInput | null> {
+  const file = readUploadedProtocolFileSync(value ?? "");
+  if (!file) return null;
+
+  return {
+    fileName: file.name,
+    mimeType: file.type,
+    buffer: Buffer.from(await file.arrayBuffer()),
+  };
+}
+
+async function collectCompetitionDistancesWithFiles(formData: FormData) {
+  const distances = collectCompetitionDistances(formData);
+  const files = await Promise.all(
+    formData.getAll("distanceProtocolFile").map(readUploadedProtocolFile),
+  );
+
+  return distances.map((distance, index) => ({
+    ...distance,
+    protocolFile: files[index] ?? null,
+  }));
+}
+
+function getProtocolImportErrorCode(error: unknown) {
+  if (!(error instanceof Error)) return "unknown";
+
+  if (error.message === "PROTOCOL_PDF_IMPORT_NOT_CONFIGURED") return "pdf";
+  if (error.message === "PROTOCOL_FILE_HEADER_NOT_FOUND") return "headers";
+  if (error.message === "PROTOCOL_FILE_ROWS_NOT_FOUND") return "rows";
+  if (error.message === "PROTOCOL_FILE_DISTANCE_COLUMN_REQUIRED") {
+    return "distance_column";
+  }
+  if (error.message === "PROTOCOL_FILE_DISTANCE_ROWS_NOT_FOUND") {
+    return "distance_rows";
+  }
+  if (error.message === "PROTOCOL_FILE_UNSUPPORTED_TYPE") return "type";
+
+  return "unknown";
+}
+
 export async function createCompetition(formData: FormData) {
   await requireAdmin();
   const competition = await createAdminCompetition({
@@ -65,7 +117,10 @@ export async function createCompetition(formData: FormData) {
     discipline: String(formData.get("discipline") ?? ""),
     distanceLabel: String(formData.get("distanceLabel") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
-    distances: collectCompetitionDistances(formData),
+    competitionProtocolFile: await readUploadedProtocolFile(
+      formData.get("competitionProtocolFile"),
+    ),
+    distances: await collectCompetitionDistancesWithFiles(formData),
   });
   refreshPublicAndAdmin();
   redirect(`/cabinet/competitions/${competition.id}/edit`);
@@ -94,7 +149,29 @@ export async function addCompetitionDistance(formData: FormData) {
     discipline: String(formData.get("discipline") ?? ""),
     distanceLabel: String(formData.get("distanceLabel") ?? ""),
     protocolUrl: String(formData.get("protocolUrl") ?? ""),
+    protocolFile: await readUploadedProtocolFile(formData.get("protocolFile")),
   });
+  refreshPublicAndAdmin();
+  redirect(`/cabinet/competitions/${competitionId}/edit`);
+}
+
+export async function uploadDistanceProtocolFile(formData: FormData) {
+  await requireAdmin();
+  const competitionId = String(formData.get("competitionId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const file = await readUploadedProtocolFile(formData.get("protocolFile"));
+
+  if (!file) {
+    redirect(`/cabinet/competitions/${competitionId}/edit?protocolError=missing_file`);
+  }
+
+  try {
+    await importAdminCompetitionDistanceProtocol(eventId, file);
+  } catch (error) {
+    redirect(
+      `/cabinet/competitions/${competitionId}/edit?protocolError=${getProtocolImportErrorCode(error)}`,
+    );
+  }
   refreshPublicAndAdmin();
   redirect(`/cabinet/competitions/${competitionId}/edit`);
 }

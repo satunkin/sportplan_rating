@@ -298,6 +298,207 @@ function parseRaceResultWorkbook(buffer) {
   return rows;
 }
 
+function normalizeHeader(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9]+/g, " ");
+}
+
+function findColumn(header, candidates) {
+  const normalizedHeader = header.map(normalizeHeader);
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeHeader(candidate);
+    const exactIndex = normalizedHeader.indexOf(normalizedCandidate);
+    if (exactIndex !== -1) return exactIndex;
+  }
+
+  return normalizedHeader.findIndex((label) =>
+    candidates.some((candidate) => {
+      const normalizedCandidate = normalizeHeader(candidate);
+      return label.includes(normalizedCandidate);
+    }),
+  );
+}
+
+function cellText(value) {
+  const text = String(value ?? "").replace(/\u00a0/g, " ").trim();
+  return text || null;
+}
+
+function findGenericHeaderRow(matrix) {
+  return matrix.slice(0, 25).findIndex((row) => {
+    const nameIndex = findColumn(row, [
+      "name",
+      "athlete",
+      "participant",
+      "full name",
+      "фио",
+      "участник",
+      "спортсмен",
+      "имя",
+    ]);
+    const timeIndex = findColumn(row, [
+      "time",
+      "result",
+      "finish",
+      "finish time",
+      "net time",
+      "результат",
+      "время",
+      "финиш",
+      "итог",
+    ]);
+
+    return nameIndex !== -1 && timeIndex !== -1;
+  });
+}
+
+function parseGenericWorkbook(buffer, params, options = {}) {
+  const workbook = XLSX.read(options.csv ? buffer.toString("utf8") : buffer, {
+    type: options.csv ? "string" : "buffer",
+    raw: false,
+    cellDates: false,
+  });
+
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const matrix = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: null,
+    raw: false,
+  });
+
+  const headerRowIndex = findGenericHeaderRow(matrix);
+  if (headerRowIndex === -1) {
+    throw new Error("PROTOCOL_FILE_HEADER_NOT_FOUND");
+  }
+
+  const header = matrix[headerRowIndex];
+  const columns = {
+    name: findColumn(header, [
+      "name",
+      "athlete",
+      "participant",
+      "full name",
+      "фио",
+      "участник",
+      "спортсмен",
+      "имя",
+    ]),
+    time: findColumn(header, [
+      "time",
+      "result",
+      "finish",
+      "finish time",
+      "net time",
+      "результат",
+      "время",
+      "финиш",
+      "итог",
+    ]),
+    ageGroup: findColumn(header, [
+      "age group",
+      "category",
+      "group",
+      "division",
+      "возрастная группа",
+      "категория",
+      "группа",
+      "зачет",
+    ]),
+    gender: findColumn(header, ["gender", "sex", "пол"]),
+    distance: findColumn(header, ["distance", "race", "дистанция", "забег"]),
+    bib: findColumn(header, ["bib", "number", "номер", "стартовый номер"]),
+    placeOverall: findColumn(header, [
+      "place",
+      "overall",
+      "rank",
+      "место",
+      "абсолют",
+    ]),
+    placeAgeGroup: findColumn(header, [
+      "age rank",
+      "category rank",
+      "group rank",
+      "место в группе",
+      "место в категории",
+    ]),
+  };
+
+  const rows = [];
+
+  for (const row of matrix.slice(headerRowIndex + 1)) {
+    const name = cellText(row[columns.name]);
+    const time = cellText(row[columns.time]);
+
+    if (!name || !time) {
+      continue;
+    }
+
+    rows.push({
+      athleteNameRaw: name,
+      finishTimeRaw: time,
+      ageGroupRaw: columns.ageGroup === -1 ? null : cellText(row[columns.ageGroup]),
+      bibNumber: columns.bib === -1 ? null : cellText(row[columns.bib]),
+      distanceLabelRaw:
+        columns.distance === -1 ? null : cellText(row[columns.distance]),
+      genderRaw: columns.gender === -1 ? null : cellText(row[columns.gender]),
+      placeAgeGroup:
+        columns.placeAgeGroup === -1
+          ? null
+          : parseIntegerValue(cellText(row[columns.placeAgeGroup])),
+      placeOverall:
+        columns.placeOverall === -1
+          ? null
+          : parseIntegerValue(cellText(row[columns.placeOverall])),
+      source: "uploaded-table",
+    });
+  }
+
+  if (rows.length === 0) {
+    throw new Error("PROTOCOL_FILE_ROWS_NOT_FOUND");
+  }
+
+  return {
+    organizer: "uploaded-file",
+    sourceUrl: params.fileName,
+    eventName: params.eventName,
+    eventDate: params.eventDate,
+    location: params.location || null,
+    distanceLabel: params.distanceLabel,
+    rowCount: rows.length,
+    extractedAt: new Date().toISOString(),
+    rows,
+  };
+}
+
+export function parseNormalizedProtocolFromUploadedFile(params) {
+  const fileName = String(params.fileName ?? "protocol").toLowerCase();
+  const mimeType = String(params.mimeType ?? "").toLowerCase();
+
+  if (fileName.endsWith(".pdf") || mimeType.includes("pdf")) {
+    throw new Error("PROTOCOL_PDF_IMPORT_NOT_CONFIGURED");
+  }
+
+  if (
+    fileName.endsWith(".csv") ||
+    fileName.endsWith(".xls") ||
+    fileName.endsWith(".xlsx") ||
+    mimeType.includes("spreadsheet") ||
+    mimeType.includes("excel") ||
+    mimeType.includes("csv")
+  ) {
+    return parseGenericWorkbook(params.buffer, params, {
+      csv: fileName.endsWith(".csv") || mimeType.includes("csv"),
+    });
+  }
+
+  throw new Error("PROTOCOL_FILE_UNSUPPORTED_TYPE");
+}
+
 async function fetchRaceResultProtocol(params) {
   const eventId = inferRaceResultEventId(params.sourceUrl);
 
