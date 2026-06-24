@@ -5,6 +5,7 @@ import {
   getLeaderboardDirectoryOptions,
   listPublicLeaderboardRows,
 } from "@/lib/cyclon-service";
+import { LeaderboardFilterForm } from "./filter-form";
 
 export const dynamic = "force-dynamic";
 
@@ -140,56 +141,12 @@ export default async function LeaderboardPage({
           </div>
         </header>
 
-        <form className="grid gap-3 rounded-[1.75rem] border border-border bg-surface px-5 py-5 md:grid-cols-5">
-          <input
-            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
-            defaultValue={params.q}
-            name="q"
-            placeholder="Имя атлета"
-          />
-          <select
-            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
-            defaultValue={params.ageGroup ?? ""}
-            name="ageGroup"
-          >
-            <option value="">Все группы</option>
-            {options.ageGroups.map((group) => (
-              <option key={group} value={group}>
-                {group}
-              </option>
-            ))}
-          </select>
-          <select
-            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
-            defaultValue={params.club ?? ""}
-            name="club"
-          >
-            <option value="">Все клубы</option>
-            {options.clubs.map((club) => (
-              <option key={club.id} value={club.id}>
-                {club.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="min-h-11 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
-            defaultValue={params.coach ?? ""}
-            name="coach"
-          >
-            <option value="">Все тренеры</option>
-            {options.coaches.map((coach) => (
-              <option key={coach.id} value={coach.id}>
-                {coach.name}
-              </option>
-            ))}
-          </select>
-          <button
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white transition hover:bg-accent-strong"
-            type="submit"
-          >
-            Применить
-          </button>
-        </form>
+        <LeaderboardFilterForm
+          ageGroups={options.ageGroups}
+          clubs={options.clubs}
+          coaches={options.coaches}
+          key={[params.q, params.ageGroup, params.club, params.coach].join(":")}
+        />
 
         <LeaderboardBoard maleRows={maleRows} femaleRows={femaleRows} />
 

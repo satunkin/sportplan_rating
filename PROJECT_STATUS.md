@@ -4,7 +4,7 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-23`
+- Updated: `2026-06-24`
 - Phase: `Vercel production deployment with Telegram-first athlete journey`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
@@ -79,6 +79,7 @@
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 - Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
+- Full leaderboard filters are compact and apply automatically from the URL query; reset appears only when filters are active.
 
 ## 5. Open Gaps
 

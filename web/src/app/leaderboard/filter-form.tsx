@@ -1,82 +1,151 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+type DirectoryOption = {
+  id: string;
+  name: string;
+};
+
+const FILTER_KEYS = ["q", "ageGroup", "club", "coach"] as const;
+const PAGE_KEYS = ["malePage", "femalePage"] as const;
 
 export function LeaderboardFilterForm({
   ageGroups,
-  disciplines,
+  clubs,
+  coaches,
 }: {
   ageGroups: string[];
-  disciplines: string[];
+  clubs: DirectoryOption[];
+  coaches: DirectoryOption[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
-  const onChange = (formData: FormData) => {
+  const activeFilters = useMemo(
+    () => FILTER_KEYS.some((key) => Boolean(searchParams.get(key))),
+    [searchParams],
+  );
+
+  const updateFilters = useCallback(
+    (nextFilters: Partial<Record<(typeof FILTER_KEYS)[number], string>>) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      for (const [key, value] of Object.entries(nextFilters)) {
+        const normalizedValue = value?.trim() ?? "";
+
+        if (normalizedValue) params.set(key, normalizedValue);
+        else params.delete(key);
+      }
+
+      for (const key of PAGE_KEYS) {
+        params.delete(key);
+      }
+
+      const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+
+      startTransition(() => {
+        router.replace(nextUrl, { scroll: false });
+      });
+    },
+    [pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (query !== (searchParams.get("q") ?? "")) {
+        updateFilters({ q: query });
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [query, searchParams, updateFilters]);
+
+  const resetFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
-    const ageGroup = String(formData.get("ageGroup") ?? "all");
-    const discipline = String(formData.get("discipline") ?? "all");
 
-    if (ageGroup === "all") params.delete("ageGroup");
-    else params.set("ageGroup", ageGroup);
+    for (const key of [...FILTER_KEYS, ...PAGE_KEYS]) {
+      params.delete(key);
+    }
 
-    if (discipline === "all") params.delete("discipline");
-    else params.set("discipline", discipline);
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    setQuery("");
 
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`);
+      router.replace(nextUrl, { scroll: false });
     });
   };
 
   return (
     <form
-      action={onChange}
-      className="grid gap-4 rounded-[1.5rem] border border-border bg-white/70 px-5 py-5 md:grid-cols-2"
+      className="grid gap-2 rounded-lg border border-border bg-surface px-3 py-3 md:grid-cols-[minmax(160px,1.35fr)_repeat(3,minmax(130px,1fr))_auto]"
+      onSubmit={(event) => event.preventDefault()}
     >
-      <label className="text-sm font-medium text-foreground">
-        Возрастная группа
-        <select
-          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-          defaultValue={searchParams.get("ageGroup") ?? "all"}
-          name="ageGroup"
-        >
-          <option value="all">Все группы</option>
-          {ageGroups.map((ageGroup) => (
-            <option key={ageGroup} value={ageGroup}>
-              {ageGroup}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="text-sm font-medium text-foreground">
-        Дисциплина
-        <select
-          className="mt-2 w-full rounded-md border border-border bg-white px-4 py-3 text-base outline-none transition focus:border-accent"
-          defaultValue={searchParams.get("discipline") ?? "all"}
-          name="discipline"
-        >
-          <option value="all">Все дисциплины</option>
-          {disciplines.map((discipline) => (
-            <option key={discipline} value={discipline}>
-              {discipline}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="flex items-center justify-between text-sm text-muted md:col-span-2">
-        <span>Фильтры применяются без перезагрузки страницы.</span>
-        <button
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 py-2 font-semibold text-white transition hover:bg-accent-strong disabled:opacity-70"
-          disabled={isPending}
-          type="submit"
-        >
-          {isPending ? "Обновляем..." : "Применить"}
-        </button>
+      <input
+        aria-label="Имя атлета"
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="q"
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Имя атлета"
+        value={query}
+      />
+      <select
+        aria-label="Возрастная группа"
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="ageGroup"
+        onChange={(event) => updateFilters({ ageGroup: event.target.value })}
+        value={searchParams.get("ageGroup") ?? ""}
+      >
+        <option value="">Все группы</option>
+        {ageGroups.map((ageGroup) => (
+          <option key={ageGroup} value={ageGroup}>
+            {ageGroup}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Клуб"
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="club"
+        onChange={(event) => updateFilters({ club: event.target.value })}
+        value={searchParams.get("club") ?? ""}
+      >
+        <option value="">Все клубы</option>
+        {clubs.map((club) => (
+          <option key={club.id} value={club.id}>
+            {club.name}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Тренер"
+        className="min-h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        name="coach"
+        onChange={(event) => updateFilters({ coach: event.target.value })}
+        value={searchParams.get("coach") ?? ""}
+      >
+        <option value="">Все тренеры</option>
+        {coaches.map((coach) => (
+          <option key={coach.id} value={coach.id}>
+            {coach.name}
+          </option>
+        ))}
+      </select>
+      <div className="flex min-h-10 items-center justify-end">
+        {activeFilters ? (
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-semibold text-foreground transition hover:bg-surface-strong disabled:opacity-70"
+            disabled={isPending}
+            onClick={resetFilters}
+            type="button"
+          >
+            {isPending ? "Обновляем..." : "Сбросить"}
+          </button>
+        ) : null}
       </div>
     </form>
   );
