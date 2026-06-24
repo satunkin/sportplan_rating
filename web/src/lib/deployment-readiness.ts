@@ -1,10 +1,6 @@
 import { getAdminAuthMode } from "@/lib/admin-auth";
 import { ensureDatabaseReady } from "@/lib/db-bootstrap";
-import {
-  getAppBaseUrl,
-  getSessionSecret,
-  getSmtpConfig,
-} from "@/lib/runtime-config";
+import { getAppBaseUrl, getSessionSecret } from "@/lib/runtime-config";
 
 export type DeploymentReadinessReport = {
   blockers: string[];
@@ -59,12 +55,6 @@ export async function getDeploymentReadinessReport() {
   } else if (isLocalhostUrl(appBaseUrl)) {
     blockers.push(
       "APP_BASE_URL still points to localhost. Set it to the public site URL before hosted deployment.",
-    );
-  }
-
-  if (!getSmtpConfig()) {
-    warnings.push(
-      "SMTP is not configured. Telegram and admin password login will work, but the legacy athlete magic-link login will be unavailable.",
     );
   }
 

@@ -37,13 +37,12 @@ kept as the compatible physical model for one competition distance.
 The `.env.example` file now contains:
 - a slot for `DATABASE_URL_POSTGRES` using Supabase session or direct connection;
 - preferred `DATABASE_URL` / `DIRECT_URL` placeholders for a Supabase-style production layout;
-- SMTP and admin auth fields for the magic-link deployment path.
+- admin auth and Telegram fields for the current production flow.
 
 Athlete auth flow:
-- `/register` creates the athlete profile and stores a password hash in PostgreSQL;
-- `/login` now treats email magic link as the primary login path;
-- the password form remains as a temporary fallback for already created local accounts;
-- in local/dev mode without SMTP config, the UI shows a direct preview link instead of sending a real email.
+- Telegram bot is the primary athlete interface for onboarding, profile updates and result submission;
+- legacy web athlete routes remain only for compatibility while the Telegram flow is the active product path;
+- `/login` redirects to `/cabinet/admin-login`.
 
 Admin auth setup:
 
@@ -122,7 +121,6 @@ rating and moderated update/delete requests. `TelegramUpdate` protects webhook
 processing from repeated Telegram delivery.
 
 Current limitation:
-- the legacy athlete magic-link login requires a real SMTP provider;
 - hosted deploy still needs final production env values and a full browser-level smoke test;
 - demo seed is a CLI-only dev/test helper; use `npm run db:clear:demo` to preview cleanup before applying it.
 
@@ -131,9 +129,7 @@ Current limitation:
 - `DATABASE_URL`: primary runtime PostgreSQL connection string.
 - `DIRECT_URL`: PostgreSQL connection string for Prisma CLI and migrations. On Supabase, use the direct host when your environment can reach it; if local Prisma commands fail against the IPv6-only direct host, use the session pooler on `5432`.
 - `DATABASE_URL_POSTGRES`: transitional fallback PostgreSQL connection string used while moving older envs and scripts.
-- `APP_BASE_URL`: public base URL used inside magic-link emails.
-- `EMAIL_FROM`: sender address shown in magic-link emails.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`: SMTP settings for real email delivery.
+- `APP_BASE_URL`: public base URL used for public links and callbacks.
 - `ADMIN_EMAIL`: admin login identifier for the stronger website admin auth flow.
 - `ADMIN_PASSWORD_HASH`: scrypt hash in `salt:hash` format for admin password verification.
 - `ADMIN_ACCESS_KEY`: temporary fallback passphrase for local/dev access when stronger admin credentials are not configured.
@@ -144,14 +140,14 @@ Current limitation:
 
 ## Next Infra Goal
 
-Finish the hosted production path around the new PostgreSQL runtime: SMTP, deploy envs, and end-to-end checks.
+Finish the hosted production path around the new PostgreSQL runtime, deploy envs, and end-to-end checks.
 
 ## Hosted Deployment
 
 Recommended default:
 - `Vercel Hobby` for the non-commercial Next.js app and Telegram webhook
 - `Supabase PostgreSQL` for the hosted database
-- SMTP is optional while Telegram is the primary athlete interface
+- Telegram is the primary athlete interface; SMTP is not required for the current production flow
 
 Before the first hosted deploy:
 
@@ -165,11 +161,9 @@ What `npm run deploy:check` now validates:
 - `APP_BASE_URL` must point to the public website URL
 - `SESSION_SECRET` must be set
 - `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` must be configured
-- SMTP is optional; without it, the legacy athlete magic-link login is unavailable
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` should be configured
 - the PostgreSQL server must be reachable with the runtime URL
 - the core Prisma-managed tables must already exist
-- when SMTP is configured, the SMTP server must accept a verification handshake
 
 Health endpoint:
 

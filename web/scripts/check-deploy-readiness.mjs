@@ -1,5 +1,4 @@
 import "dotenv/config";
-import nodemailer from "nodemailer";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -7,9 +6,7 @@ import {
   getAppBaseUrl,
   getDirectDatabaseUrl,
   getRuntimeDatabaseUrl,
-  getSmtpConfig,
   isLocalhostUrl,
-  isSmtpConfigured,
 } from "./lib/runtime-env.mjs";
 
 const blockers = [];
@@ -19,7 +16,6 @@ const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
 const runtimeDatabaseUrl = getRuntimeDatabaseUrl();
 const directUrl = getDirectDatabaseUrl();
 const appBaseUrl = getAppBaseUrl();
-const smtp = getSmtpConfig();
 const sessionSecret = process.env.SESSION_SECRET ?? "";
 const adminEmail = process.env.ADMIN_EMAIL ?? "";
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH ?? "";
@@ -90,12 +86,6 @@ if (!appBaseUrl) {
   blockers.push("APP_BASE_URL is missing.");
 } else if (isLocalhostUrl(appBaseUrl)) {
   blockers.push("APP_BASE_URL still points to localhost.");
-}
-
-if (!isSmtpConfigured()) {
-  warnings.push(
-    "SMTP is not configured. Telegram and admin password login will work, but the legacy athlete magic-link login will be unavailable.",
-  );
 }
 
 if (!adminEmail || !adminPasswordHash) {
@@ -182,33 +172,7 @@ async function verifyDatabaseConnectivity() {
   }
 }
 
-async function verifySmtpConnectivity() {
-  if (!isSmtpConfigured()) {
-    return;
-  }
-
-  const transport = nodemailer.createTransport({
-    host: smtp.host,
-    port: smtp.port,
-    secure: smtp.secure,
-    auth: {
-      user: smtp.user,
-      pass: smtp.pass,
-    },
-  });
-
-  try {
-    await transport.verify();
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown SMTP error.";
-
-    blockers.push(`SMTP connectivity check failed: ${message}`);
-  }
-}
-
 await verifyDatabaseConnectivity();
-await verifySmtpConnectivity();
 
 if (blockers.length === 0) {
   console.log("Deployment readiness check passed.");

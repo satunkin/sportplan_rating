@@ -77,7 +77,7 @@
 - Moderation decisions enqueue/send Telegram notifications when a linked conversation exists.
 - Deployment checks include Telegram environment and new RLS tables.
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
-- SMTP is optional for the Telegram-first deployment; without SMTP only the legacy athlete magic-link login is unavailable.
+- SMTP is not required for the Telegram-first production flow; health/deploy readiness no longer warns when SMTP is absent.
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
 - Production deployment `https://sportplan-rating.vercel.app` is live; `/api/health` returns `200` with no blockers.
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
@@ -97,7 +97,7 @@
 - Broadcasts remain a UI scaffold and are not connected to bulk Telegram delivery.
 - Legacy web athlete cabinet/result routes remain for compatibility.
 - Imported protocol rows are grouped and benchmarked, but automatic athlete-row matching is not yet implemented.
-- Production SMTP is intentionally optional; without it only the legacy athlete magic-link login is unavailable.
+- Production SMTP is intentionally out of the current Telegram-first flow.
 - `plansporta.ru` still points to the old Netlify deployment.
 
 ## 6. Demo Snapshot
@@ -123,9 +123,8 @@
 4. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
 5. Add Telegram notification retry processing and connect broadcasts.
 6. Match imported protocol rows to submissions automatically.
-7. Optionally configure SMTP for legacy athlete web login.
-8. Continue the separate visual design and polish phase.
-9. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
+7. Continue the separate visual design and polish phase.
+8. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
 
 ## 9. Decision Log
 
