@@ -1,53 +1,102 @@
+"use client";
+
+import {
+  CalendarDots,
+  CaretDown,
+  ChartBar,
+  List,
+  Question,
+  TelegramLogo,
+  X,
+} from "@phosphor-icons/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const navigationLinks = [
-  { href: "/leaderboard", label: "Рейтинг" },
-  { href: "/events", label: "Соревнования" },
-  { href: "/rules", label: "Правила" },
-  { href: "/participate", label: "Как участвовать" },
+  { href: "/leaderboard", label: "Рейтинг", icon: ChartBar },
+  { href: "/events", label: "Соревнования", icon: CalendarDots },
+  { href: "/rules", label: "Правила", icon: Question },
+  { href: "/participate", label: "Как участвовать", icon: TelegramLogo },
 ];
 
-export function SiteHeader() {
+function Navigation({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white/92 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-5 py-3 sm:px-8 md:flex-row md:items-center md:gap-5 lg:px-10">
-        <div className="flex items-center justify-between gap-5">
+    <nav aria-label="Основная навигация" className="grid gap-1">
+      {navigationLinks.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href || pathname.startsWith(`${href}/`);
+        return (
           <Link
-            className="inline-flex min-h-10 items-center text-sm font-semibold text-foreground"
-            href="/"
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              active
+                ? "bg-accent text-white"
+                : "text-foreground hover:bg-surface-strong"
+            }`}
+            href={href}
+            key={href}
+            onClick={onNavigate}
           >
-            Кубок Циклон · 2026
+            <Icon aria-hidden size={20} weight={active ? "fill" : "regular"} />
+            {label}
           </Link>
-          <nav
-            aria-label="Основная навигация"
-            className="hidden items-center gap-1 md:flex"
-          >
-            {navigationLinks.map((link) => (
-              <Link
-                className="rounded-md px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                href={link.href}
-                key={link.href}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function SiteHeader() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 border-r border-border bg-white lg:flex lg:flex-col">
+        <div className="border-b border-border px-5 py-6">
+          <Link className="block text-sm font-bold tracking-tight text-foreground" href="/">
+            КУБОК ЦИКЛОН
+          </Link>
+          <p className="mt-1 text-xs font-medium text-muted">Рейтинг сезона 2026</p>
         </div>
-        <nav
-          aria-label="Мобильная навигация"
-          className="-mx-1 grid grid-cols-4 md:hidden"
-        >
-          {navigationLinks.map((link) => (
-            <Link
-              className="inline-flex min-h-11 items-center justify-center rounded-md px-1 text-center text-xs font-medium text-foreground transition hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              href={link.href}
-              key={link.href}
+        <div className="px-3 py-4">
+          <Navigation />
+        </div>
+        <div className="mt-auto border-t border-border px-5 py-4 text-xs leading-5 text-muted">
+          <p>Сезон 2026</p>
+          <p>Обновлено 13 июля</p>
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-40 border-b border-border bg-white/95 backdrop-blur lg:hidden">
+        <div className="flex min-h-16 items-center justify-between px-4 sm:px-6">
+          <Link className="text-sm font-bold tracking-tight" href="/">
+            КУБОК ЦИКЛОН
+          </Link>
+          <button
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+            className="grid size-11 place-items-center rounded-lg border border-border bg-white text-foreground"
+            onClick={() => setMobileOpen((value) => !value)}
+            type="button"
+          >
+            {mobileOpen ? <X size={22} /> : <List size={22} />}
+          </button>
+        </div>
+        {mobileOpen ? (
+          <div className="border-t border-border px-4 py-3 shadow-lg sm:px-6">
+            <Navigation onNavigate={() => setMobileOpen(false)} />
+            <button
+              className="mt-2 flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-xs font-medium text-muted"
+              onClick={() => setMobileOpen(false)}
+              type="button"
             >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </header>
+              Свернуть меню <CaretDown size={16} />
+            </button>
+          </div>
+        ) : null}
+      </header>
+    </>
   );
 }

@@ -13,6 +13,7 @@ import { createCompetition } from "@/app/cabinet/management-actions";
 import { CompetitionCreateForm } from "@/app/cabinet/competitions/competition-create-form";
 import { ScoreBreakdown } from "@/components/score-breakdown";
 import { TechnicalNote } from "@/components/technical-note";
+import { DemoCabinetPreview } from "@/components/demo-cabinet-preview";
 import {
   getAthleteProfileByUserId,
   getPublicAthleteProfile,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/db";
 import { hasAdminSession, getAthleteUserSession } from "@/lib/session";
 import { formatDate } from "@/lib/time";
+import { isDemoMode } from "@/lib/demo-mode";
 import { Discipline, EntityStatus } from "@prisma/client";
 
 function formatDisciplineLabel(value: Discipline) {
@@ -44,6 +46,10 @@ export default async function CabinetPage({
 }: {
   searchParams: Promise<{ adminError?: string }>;
 }) {
+  if (isDemoMode()) {
+    return <DemoCabinetPreview />;
+  }
+
   const [adminSession, athleteUserId, { adminError }] = await Promise.all([
     hasAdminSession(),
     getAthleteUserSession(),

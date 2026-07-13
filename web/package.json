@@ -7,6 +7,7 @@
     "prebuild": "npm run prisma:generate",
     "prestart": "npm run prisma:generate",
     "dev": "next dev",
+    "dev:demo": "DEMO_DATA_MODE=fixtures next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -32,6 +33,7 @@
     "prisma:validate:postgres": "prisma validate --config prisma.config.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",

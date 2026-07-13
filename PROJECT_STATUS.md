@@ -4,8 +4,8 @@
 
 ## 1. Current State
 
-- Updated: `2026-06-24`
-- Phase: `Vercel production deployment with Telegram-first athlete journey`
+- Updated: `2026-07-13`
+- Phase: `Isolated fixture demo and public rating redesign`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
@@ -16,7 +16,9 @@
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
 - Supabase security hardening is applied: all current app tables have RLS enabled, and broad `anon` / `authenticated` / `service_role` table grants were revoked.
-- Current Supabase data after demo cleanup: `6` competitions, `6` distances, `0` orphan distances, `8761` protocol rows, `130` protocol groups, `3` submissions and `3` verified results.
+- Supabase was rechecked read-only after resume: connection and `SELECT 1` succeed; all 6 migrations are applied; RLS is enabled on required tables.
+- Current Supabase data: `6` competitions, `7` distances, `0` orphan distances, `14,539` protocol rows, `243` protocol groups, `3` submissions and `3` verified results.
+- Local deploy-readiness has one expected warning/blocker: `APP_BASE_URL` points to localhost.
 - Existing user changes present before this implementation were preserved.
 
 ## 2. Confirmed Decisions
@@ -32,7 +34,9 @@
 - Confirmed result updates/deletions do not affect the rating until approved.
 - Archive is the default destructive-action policy.
 - Only season 2026 is exposed in the current UX.
-- Visual design polish is a separate next phase.
+- Selected public rating design uses one persistent left navigation rail on desktop; the duplicated top desktop menu is removed.
+- Age-group filters preserve absolute gender-rating positions, so visible ranks intentionally remain nonconsecutive.
+- Design/demo data must stay in isolated fixtures and must never be written to the real Supabase project.
 - `plansporta.ru` is still served by the old Netlify site; it must not be switched until the Vercel deployment and Telegram webhook are verified.
 
 ## 3. Architecture
@@ -47,6 +51,7 @@
 - `TelegramUpdate` provides webhook idempotency.
 - `TelegramNotification` stores moderation delivery attempts.
 - Shared product logic for Telegram and new public/admin flows lives in `web/src/lib/cyclon-service.ts`.
+- Public pages use the same service interface with an internal provider switch: Prisma normally, deterministic in-memory fixtures only under `npm run dev:demo`.
 - Protocol import continues through organizer parsers and now rebuilds `ProtocolGroup` records after import.
 - Migration fallback command: `npm run db:apply:cyclon-migration`; verification: `npm run db:check:cyclon-migration`.
 
@@ -87,6 +92,16 @@
 - Demo cleanup script `npm run db:clear:demo` removes generated demo athletes, submissions, verified results and demo competitions; the admin UI no longer exposes the demo seed button.
 - Browser smoke checks passed for homepage, accordion behavior, full-rating search, mobile tabs, events, competition detail and admin competition/directory pages.
 - Homepage, full leaderboard and competitions now share the public visual language of the rules page: consistent hero panels, content width, section rhythm, filters, list surfaces and CTA treatment.
+- Root `SPECIFICATION_TZ.md` captures the current product logic as a reusable technical assignment for a future rebuild: sections, roles, entities, workflows, rating algorithms, Telegram flows, admin moderation and MVP acceptance criteria.
+- Added deterministic, formula-based fixtures: 120 athletes (60/60), 12 competitions, 20 distances, 8 clubs, 12 coaches and 420 results with 1–6 starts, reserves, missing clubs and long names.
+- Added `npm run dev:demo`; fixture mode cannot activate in production and does not call or mutate Supabase.
+- Fixtures feed the rating, competition index/detail, club cards, coach cards and read-only cabinet preview including pending create/update/delete moderation states.
+- Rebuilt the public shell with one desktop left sidebar, Phosphor icons and a mobile menu; removed the duplicated desktop top navigation.
+- Rebuilt the rating as compact stacked tables with expandable top-3/reserve history, unified statuses, controlled loading/error/empty states and 10-row pagination.
+- Independent male/female pagination is placed in each table header; the duplicated pagination block below the tables was removed.
+- Pagination transitions preserve the current scroll position; `/` redirects to the unfiltered `/leaderboard` as the public home screen.
+- Age filters normalize `M/W` prefixes but never recompute `rank`; the 35–39 demo view displays nonconsecutive absolute positions.
+- Browser checks passed at 1440/1280, 768 and 390 px; 390 and 768 px have no horizontal overflow.
 
 ## 5. Open Gaps
 
@@ -99,12 +114,15 @@
 - Imported protocol rows are grouped and benchmarked, but automatic athlete-row matching is not yet implemented.
 - Production SMTP is intentionally out of the current Telegram-first flow.
 - `plansporta.ru` still points to the old Netlify deployment.
+- Remaining public pages still use parts of the older large-radius visual language and can be brought to the new compact system in a later slice.
+- Filtering and pagination still happen in application memory for Prisma data; PostgreSQL-side filtering/pagination remains planned.
+- Service modules, SQLite dependencies, tracked generated Prisma client and migration history still need the planned cleanup.
 
 ## 6. Demo Snapshot
 
-- Demo seed data is cleared from Supabase: `0` demo users, `0` demo athletes, `0` demo submissions, `0` demo verified results and `0` demo competitions/distances remain.
-- Current real/manual totals after cleanup: `2` athletes, `6` competitions, `6` distances, `3` submissions and `3` verified results.
-- Real imported protocols: runc.run `8493` rows; RaceResult/Grom `268` rows.
+- Supabase contains no newly generated design data; fixture preview is memory-only.
+- Fixture snapshot: 120 athletes, 12 competitions, 20 distances, 420 results, 8 clubs, 12 coaches and 5 moderation examples.
+- Current real data remains separate: 6 competitions, 7 distances, 14,539 protocol rows, 243 protocol groups, 3 submissions and 3 verified results.
 
 ## 7. Working Rules For Future Chats
 
@@ -123,8 +141,11 @@
 4. Add selectable existing clubs/coaches in Telegram and searchable duplicate merging in admin.
 5. Add Telegram notification retry processing and connect broadcasts.
 6. Match imported protocol rows to submissions automatically.
-7. Continue the separate visual design and polish phase.
-8. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
+7. Review and edit `SPECIFICATION_TZ.md` before using it as the source brief for a new implementation.
+8. Apply the compact visual system to competitions, rules and the full admin workspace after rating feedback.
+9. Move public filtering and pagination to PostgreSQL and add graceful database-unavailable fallbacks.
+10. Remove SQLite dependencies/generated Prisma artifacts and simplify migration history in a dedicated infrastructure change.
+11. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
 
 ## 9. Decision Log
 
@@ -146,3 +167,6 @@
 - `2026-06-24`: admin competition creation now supports multiple distances with a separate protocol URL/import per distance.
 - `2026-06-24`: Telegram athlete full-name parsing now treats input as `Имя Фамилия` and can match existing active athletes with swapped first/last names before creating a new profile.
 - `2026-06-24`: public leaderboard filters became compact, auto-applying URL filters with a reset action shown only when filters are active.
+- `2026-06-25`: reusable rebuild-oriented technical assignment added at `SPECIFICATION_TZ.md`.
+- `2026-07-13`: isolated fixture provider adopted for design review; real Supabase remains read-only and unchanged.
+- `2026-07-13`: third rating design selected with a single left navigation rail and absolute, nonconsecutive rank positions inside age filters.

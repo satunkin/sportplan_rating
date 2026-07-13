@@ -15,6 +15,15 @@ import {
   getSeasonAge,
 } from "@/lib/age-group";
 import { prisma } from "@/lib/prisma";
+import { isDemoMode } from "@/lib/demo-mode";
+import {
+  demoLeaderboardRows,
+  getDemoClubCard,
+  getDemoCoachCard,
+  getDemoCompetition,
+  getDemoLeaderboardDirectoryOptions,
+  listDemoCompetitions,
+} from "@/lib/demo-data";
 import {
   importProtocolForEvent,
   persistNormalizedProtocolForEvent,
@@ -486,6 +495,10 @@ export async function createResultChangeRequest(params: {
 }
 
 export async function listPublicLeaderboardRows() {
+  if (isDemoMode()) {
+    return demoLeaderboardRows;
+  }
+
   const season = await prisma.season.findUnique({
     where: { name: `${CYCLON_SEASON_YEAR} Season` },
   });
@@ -550,6 +563,7 @@ export async function listPublicLeaderboardRows() {
         result.event.competition?.name ?? result.submission.eventNameRaw,
       distanceLabel: result.submission.distanceLabel,
       finishTime: result.submission.finishTimeRaw,
+      ageGroupPlacement: result.submission.placementInAgeGroup,
       points: result.awardedPoints,
       counted: index < 3,
     })),
@@ -557,6 +571,10 @@ export async function listPublicLeaderboardRows() {
 }
 
 export async function getLeaderboardDirectoryOptions() {
+  if (isDemoMode()) {
+    return getDemoLeaderboardDirectoryOptions();
+  }
+
   const [clubs, coaches, ageGroups] = await Promise.all([
     prisma.club.findMany({
       where: { status: EntityStatus.ACTIVE },
@@ -589,6 +607,10 @@ export async function getLeaderboardDirectoryOptions() {
 }
 
 export async function getPublicClubCard(clubId: string) {
+  if (isDemoMode()) {
+    return getDemoClubCard(clubId);
+  }
+
   return prisma.club.findFirst({
     where: { id: clubId, status: EntityStatus.ACTIVE },
     include: {
@@ -616,6 +638,10 @@ export async function getPublicClubCard(clubId: string) {
 }
 
 export async function getPublicCoachCard(coachId: string) {
+  if (isDemoMode()) {
+    return getDemoCoachCard(coachId);
+  }
+
   return prisma.coach.findFirst({
     where: { id: coachId, status: EntityStatus.ACTIVE },
     include: {
@@ -645,6 +671,10 @@ export async function getPublicCoachCard(coachId: string) {
 export async function listPublicCompetitions(filters?: {
   discipline?: string;
 }) {
+  if (isDemoMode()) {
+    return listDemoCompetitions(filters);
+  }
+
   const competitions = await prisma.competition.findMany({
     where: {
       status: EntityStatus.ACTIVE,
@@ -697,6 +727,10 @@ export async function listPublicCompetitions(filters?: {
 }
 
 export async function getPublicCompetition(competitionId: string) {
+  if (isDemoMode()) {
+    return getDemoCompetition(competitionId);
+  }
+
   const competition = await prisma.competition.findFirst({
     where: {
       id: competitionId,

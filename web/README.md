@@ -52,13 +52,27 @@ npm run admin:hash-password -- "strong-admin-password"
 
 Put the printed value into `ADMIN_PASSWORD_HASH` and set `ADMIN_EMAIL`. `ADMIN_ACCESS_KEY` now acts only as a temporary fallback for local/dev access if the stronger credentials are not configured yet.
 
-Optional local/dev demo data:
+## Safe design demo
+
+For a filled interface without touching Supabase, start the isolated fixture mode:
+
+```bash
+npm run dev:demo
+```
+
+Open [http://localhost:3000/leaderboard?ageGroup=35-39](http://localhost:3000/leaderboard?ageGroup=35-39).
+
+This mode is deterministic and contains 120 athletes, 12 competitions, 20 distances, 8 clubs, 12 coaches and 420 results. It switches the public data provider to in-memory fixtures, includes a read-only cabinet preview at `/cabinet`, never writes to Prisma, and is forcibly disabled when `NODE_ENV=production`.
+
+Do not use `db:seed:demo` for design review against a configured real database. That legacy command writes demo records to the current database. It remains available only for an explicitly isolated test database.
+
+Legacy database demo seed:
 
 ```bash
 npm run db:seed:demo
 ```
 
-The demo seed is safe to rerun in a test environment. It upserts demo athletes, events, submissions, verified results, and recalculated rankings instead of wiping the whole database. To preview or remove the known demo dataset:
+The database seed is safe to rerun only in an isolated test environment. It upserts demo athletes, events, submissions, verified results, and recalculated rankings instead of wiping the whole database. To preview or remove that known dataset:
 
 ```bash
 npm run db:clear:demo
