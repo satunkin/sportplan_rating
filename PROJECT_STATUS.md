@@ -5,7 +5,7 @@
 ## 1. Current State
 
 - Updated: `2026-07-13`
-- Phase: `Isolated fixture demo and public rating redesign`
+- Phase: `Production public rating redesign with isolated fixture demo`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
@@ -84,7 +84,7 @@
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
 - SMTP is not required for the Telegram-first production flow; health/deploy readiness no longer warns when SMTP is absent.
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
-- Production deployment `https://sportplan-rating.vercel.app` is live; `/api/health` returns `200` with no blockers.
+- Production deployment `https://cycleoncup.vercel.app` is live at commit `255205d`; `/api/health` returns `200` with no blockers or warnings.
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
@@ -121,6 +121,7 @@
 ## 6. Demo Snapshot
 
 - Supabase contains no newly generated design data; fixture preview is memory-only.
+- Production mode uses real Supabase data and does not display or activate fixture records.
 - Fixture snapshot: 120 athletes, 12 competitions, 20 distances, 420 results, 8 clubs, 12 coaches and 5 moderation examples.
 - Current real data remains separate: 6 competitions, 7 distances, 14,539 protocol rows, 243 protocol groups, 3 submissions and 3 verified results.
 
@@ -170,3 +171,4 @@
 - `2026-06-25`: reusable rebuild-oriented technical assignment added at `SPECIFICATION_TZ.md`.
 - `2026-07-13`: isolated fixture provider adopted for design review; real Supabase remains read-only and unchanged.
 - `2026-07-13`: third rating design selected with a single left navigation rail and absolute, nonconsecutive rank positions inside age filters.
+- `2026-07-13`: redesigned rating deployed to `https://cycleoncup.vercel.app`; production health and runtime-error checks passed.
