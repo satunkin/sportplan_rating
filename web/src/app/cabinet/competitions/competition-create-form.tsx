@@ -1,6 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
+
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 type CompetitionCreateFormProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -22,12 +25,14 @@ function createDistanceRow(): DistanceRow {
 }
 
 export function CompetitionCreateForm({ action }: CompetitionCreateFormProps) {
+  const pathname = usePathname();
   const [distances, setDistances] = useState<DistanceRow[]>([
     createDistanceRow(),
   ]);
 
   return (
-    <form action={action} className="mt-5 grid gap-3" encType="multipart/form-data">
+    <form action={action} className="mt-5 grid gap-3">
+      <input name="returnTo" type="hidden" value={pathname} />
       <input
         className="min-h-11 border border-border px-3"
         name="name"
@@ -149,12 +154,11 @@ export function CompetitionCreateForm({ action }: CompetitionCreateFormProps) {
         </button>
       </fieldset>
 
-      <button
+      <PendingSubmitButton
         className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white"
-        type="submit"
-      >
-        Создать
-      </button>
+        idleLabel="Создать соревнование"
+        pendingLabel="Создаём соревнование…"
+      />
     </form>
   );
 }

@@ -27,6 +27,24 @@ async function requireAdmin() {
   if (!(await hasAdminSession())) redirect("/cabinet/admin-login");
 }
 
+function feedbackHref(
+  path: string,
+  key: "notice" | "error",
+  value: string,
+) {
+  const [pathname, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set(key, value);
+  return `${pathname}?${params.toString()}`;
+}
+
+function safeCabinetReturnTo(value: FormDataEntryValue | null) {
+  const path = String(value ?? "");
+  return path.startsWith("/cabinet") && !path.startsWith("//")
+    ? path
+    : "/cabinet/competitions";
+}
+
 function refreshPublicAndAdmin() {
   revalidateTag(PUBLIC_DATA_CACHE_TAG, "max");
   revalidatePath("/");
@@ -106,24 +124,41 @@ function getProtocolImportErrorCode(error: unknown) {
 
 export async function createCompetition(formData: FormData) {
   await requireAdmin();
-  const competition = await createAdminCompetition({
-    name: String(formData.get("name") ?? ""),
-    eventDate: String(formData.get("eventDate") ?? ""),
-    city: String(formData.get("city") ?? ""),
-    seriesName: String(formData.get("seriesName") ?? ""),
-    pageUrl: String(formData.get("pageUrl") ?? ""),
-    registrationUrl: String(formData.get("registrationUrl") ?? ""),
-    resultsUrl: String(formData.get("resultsUrl") ?? ""),
-    discipline: String(formData.get("discipline") ?? ""),
-    distanceLabel: String(formData.get("distanceLabel") ?? ""),
-    protocolUrl: String(formData.get("protocolUrl") ?? ""),
-    competitionProtocolFile: await readUploadedProtocolFile(
-      formData.get("competitionProtocolFile"),
-    ),
-    distances: await collectCompetitionDistancesWithFiles(formData),
-  });
+  const returnTo = safeCabinetReturnTo(formData.get("returnTo"));
+  let competition;
+
+  try {
+    competition = await createAdminCompetition({
+      name: String(formData.get("name") ?? ""),
+      eventDate: String(formData.get("eventDate") ?? ""),
+      city: String(formData.get("city") ?? ""),
+      seriesName: String(formData.get("seriesName") ?? ""),
+      pageUrl: String(formData.get("pageUrl") ?? ""),
+      registrationUrl: String(formData.get("registrationUrl") ?? ""),
+      resultsUrl: String(formData.get("resultsUrl") ?? ""),
+      discipline: String(formData.get("discipline") ?? ""),
+      distanceLabel: String(formData.get("distanceLabel") ?? ""),
+      protocolUrl: String(formData.get("protocolUrl") ?? ""),
+      competitionProtocolFile: await readUploadedProtocolFile(
+        formData.get("competitionProtocolFile"),
+      ),
+      distances: await collectCompetitionDistancesWithFiles(formData),
+    });
+  } catch (error) {
+    console.error("Failed to create admin competition", error);
+    redirect(feedbackHref(returnTo, "error", "competition_create_failed"));
+  }
+
   refreshPublicAndAdmin();
-  redirect(`/cabinet/competitions/${competition.id}/edit`);
+  redirect(
+    feedbackHref(
+      `/cabinet/competitions/${competition.id}/edit`,
+      "notice",
+      competition.protocolImportError
+        ? "competition_created_protocol_warning"
+        : "competition_created",
+    ),
+  );
 }
 
 export async function saveCompetition(formData: FormData) {
@@ -139,7 +174,13 @@ export async function saveCompetition(formData: FormData) {
     resultsUrl: String(formData.get("resultsUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/cabinet/competitions/${competitionId}/edit`);
+  redirect(
+    feedbackHref(
+      `/cabinet/competitions/${competitionId}/edit`,
+      "notice",
+      "competition_saved",
+    ),
+  );
 }
 
 export async function addCompetitionDistance(formData: FormData) {
@@ -152,7 +193,13 @@ export async function addCompetitionDistance(formData: FormData) {
     protocolFile: await readUploadedProtocolFile(formData.get("protocolFile")),
   });
   refreshPublicAndAdmin();
-  redirect(`/cabinet/competitions/${competitionId}/edit`);
+  redirect(
+    feedbackHref(
+      `/cabinet/competitions/${competitionId}/edit`,
+      "notice",
+      "competition_distance_added",
+    ),
+  );
 }
 
 export async function uploadDistanceProtocolFile(formData: FormData) {
@@ -173,7 +220,13 @@ export async function uploadDistanceProtocolFile(formData: FormData) {
     );
   }
   refreshPublicAndAdmin();
-  redirect(`/cabinet/competitions/${competitionId}/edit`);
+  redirect(
+    feedbackHref(
+      `/cabinet/competitions/${competitionId}/edit`,
+      "notice",
+      "competition_protocol_imported",
+    ),
+  );
 }
 
 export async function saveGroupBenchmark(formData: FormData) {
@@ -185,7 +238,13 @@ export async function saveGroupBenchmark(formData: FormData) {
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect(`/cabinet/competitions/${competitionId}/edit`);
+  redirect(
+    feedbackHref(
+      `/cabinet/competitions/${competitionId}/edit`,
+      "notice",
+      "competition_benchmark_saved",
+    ),
+  );
 }
 
 export async function setCompetitionArchived(formData: FormData) {
@@ -195,32 +254,50 @@ export async function setCompetitionArchived(formData: FormData) {
   if (restore) await restoreCompetition(competitionId);
   else await archiveCompetition(competitionId);
   refreshPublicAndAdmin();
-  redirect("/cabinet/competitions");
+  redirect(
+    feedbackHref(
+      "/cabinet/competitions",
+      "notice",
+      restore ? "competition_restored" : "competition_archived",
+    ),
+  );
 }
 
 export async function createDirectory(formData: FormData) {
   await requireAdmin();
+  const type = String(formData.get("type") ?? "") === "coach" ? "coach" : "club";
   await createDirectoryEntity({
-    type: String(formData.get("type") ?? "") === "coach" ? "coach" : "club",
+    type,
     name: String(formData.get("name") ?? ""),
     websiteUrl: String(formData.get("websiteUrl") ?? ""),
   });
   refreshPublicAndAdmin();
-  redirect("/cabinet/directories");
+  redirect(
+    feedbackHref(
+      "/cabinet/directories",
+      "notice",
+      type === "coach" ? "coach_created" : "club_created",
+    ),
+  );
 }
 
 export async function changeDirectoryStatus(formData: FormData) {
   await requireAdmin();
+  const restore = String(formData.get("restore") ?? "") === "true";
   await setDirectoryEntityStatus({
     type: String(formData.get("type") ?? "") === "coach" ? "coach" : "club",
     id: String(formData.get("id") ?? ""),
     status:
-      String(formData.get("restore") ?? "") === "true"
-        ? EntityStatus.ACTIVE
-        : EntityStatus.ARCHIVED,
+      restore ? EntityStatus.ACTIVE : EntityStatus.ARCHIVED,
   });
   refreshPublicAndAdmin();
-  redirect("/cabinet/directories");
+  redirect(
+    feedbackHref(
+      "/cabinet/directories",
+      "notice",
+      restore ? "directory_restored" : "directory_archived",
+    ),
+  );
 }
 
 export async function approveProposal(formData: FormData) {

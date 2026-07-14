@@ -984,45 +984,55 @@ export async function createAdminCompetition(input: {
 
   const competitionProtocolFile = input.competitionProtocolFile;
   const hasCompetitionProtocolFile = hasProtocolFile(competitionProtocolFile);
+  let protocolImportError: string | null = null;
 
-  if (hasCompetitionProtocolFile) {
-    await importUploadedCompetitionProtocol({
-      competition,
-      distances: competition.distances,
-      file: competitionProtocolFile,
+  try {
+    if (hasCompetitionProtocolFile) {
+      await importUploadedCompetitionProtocol({
+        competition,
+        distances: competition.distances,
+        file: competitionProtocolFile,
+      });
+    }
+
+    for (const distance of competition.distances) {
+      const distanceInput = distances.find(
+        (item) => item.distanceLabel === distance.distanceLabel,
+      );
+
+      if (hasProtocolFile(distanceInput?.protocolFile)) {
+        await importUploadedProtocolForEvent({
+          eventId: distance.id,
+          file: distanceInput.protocolFile,
+          eventName: competition.name,
+          eventDate: competition.eventDate,
+          location: competition.city,
+          distanceLabel: distance.distanceLabel,
+        });
+        continue;
+      }
+
+      if (!hasCompetitionProtocolFile && distance.sourceUrl) {
+        await importProtocolForEvent({
+          eventId: distance.id,
+          sourceUrl: distance.sourceUrl,
+          eventName: competition.name,
+          eventDate: competition.eventDate,
+          location: competition.city,
+          distanceLabel: distance.distanceLabel,
+        });
+      }
+    }
+  } catch (error) {
+    protocolImportError =
+      error instanceof Error ? error.message : "PROTOCOL_IMPORT_FAILED";
+    console.warn("Competition created without a completed protocol import", {
+      competitionId: competition.id,
+      protocolImportError,
     });
   }
 
-  for (const distance of competition.distances) {
-    const distanceInput = distances.find(
-      (item) => item.distanceLabel === distance.distanceLabel,
-    );
-
-    if (hasProtocolFile(distanceInput?.protocolFile)) {
-      await importUploadedProtocolForEvent({
-        eventId: distance.id,
-        file: distanceInput.protocolFile,
-        eventName: competition.name,
-        eventDate: competition.eventDate,
-        location: competition.city,
-        distanceLabel: distance.distanceLabel,
-      });
-      continue;
-    }
-
-    if (!hasCompetitionProtocolFile && distance.sourceUrl) {
-      await importProtocolForEvent({
-        eventId: distance.id,
-        sourceUrl: distance.sourceUrl,
-        eventName: competition.name,
-        eventDate: competition.eventDate,
-        location: competition.city,
-        distanceLabel: distance.distanceLabel,
-      });
-    }
-  }
-
-  return competition;
+  return { ...competition, protocolImportError };
 }
 
 export async function updateAdminCompetition(

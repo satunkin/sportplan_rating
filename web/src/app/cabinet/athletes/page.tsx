@@ -5,6 +5,7 @@ import {
   changeAthleteArchiveStatusByAdmin,
   createAthleteUserByAdmin,
 } from "@/app/cabinet/actions";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { listAthletesForAdmin } from "@/lib/db";
 import { hasAdminSession } from "@/lib/session";
 import { EntityStatus } from "@prisma/client";
@@ -191,12 +192,11 @@ export default async function AdminAthletesPage({
                   <option value="female">Женский</option>
                 </select>
               </div>
-              <button
+              <PendingSubmitButton
                 className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-strong"
-                type="submit"
-              >
-                Создать участника
-              </button>
+                idleLabel="Создать участника"
+                pendingLabel="Создаём участника…"
+              />
             </form>
           </article>
 

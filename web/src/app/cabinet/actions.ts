@@ -54,6 +54,13 @@ async function requireAdminSession() {
   }
 }
 
+function withNotice(path: string, notice: string) {
+  const [pathname, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set("notice", notice);
+  return `${pathname}?${params.toString()}`;
+}
+
 function getAdminSubmissionErrorCode(error: unknown) {
   if (!(error instanceof Error)) {
     return "submission_save_failed";
@@ -231,7 +238,7 @@ export async function createAthleteUserByAdmin(formData: FormData) {
 
   await createAthleteByAdmin(validation.data);
   revalidateAppShell();
-  redirect("/cabinet/athletes");
+  redirect(withNotice("/cabinet/athletes", "athlete_created"));
 }
 
 export async function createAdminUserByAdmin(formData: FormData) {
@@ -242,7 +249,7 @@ export async function createAdminUserByAdmin(formData: FormData) {
 
   await createAdminAccount(email, password);
   revalidateAppShell();
-  redirect("/cabinet");
+  redirect(withNotice("/cabinet", "admin_created"));
 }
 
 export async function saveAthleteByAdmin(formData: FormData) {
@@ -271,7 +278,9 @@ export async function saveAthleteByAdmin(formData: FormData) {
   });
 
   revalidateAppShell();
-  redirect(`/cabinet/athletes/${athleteId}`);
+  redirect(
+    withNotice(`/cabinet/athletes/${athleteId}`, "athlete_saved"),
+  );
 }
 
 export async function changeAthleteArchiveStatusByAdmin(formData: FormData) {
@@ -283,7 +292,12 @@ export async function changeAthleteArchiveStatusByAdmin(formData: FormData) {
 
   await setAthleteArchiveStatusByAdmin(athleteId, restore);
   revalidateAppShell();
-  redirect(redirectTo);
+  redirect(
+    withNotice(
+      redirectTo,
+      restore ? "athlete_restored" : "athlete_archived",
+    ),
+  );
 }
 
 export async function addAthleteSubmissionByAdmin(formData: FormData) {

@@ -67,6 +67,86 @@ textarea {
   font: inherit;
 }
 
+button:not(:disabled),
+a[class*="inline-flex"] {
+  transform: translateY(0) scale(1);
+  transition-duration: 180ms;
+  transition-property: background-color, border-color, color, filter, transform;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+button:not(:disabled):active,
+a[class*="inline-flex"]:active {
+  filter: brightness(0.96) saturate(0.92);
+  transform: translateY(1px) scale(0.985);
+  transition-duration: 90ms;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.cabinet-toast {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  inset: 16px 16px auto auto;
+  max-width: min(390px, calc(100vw - 32px));
+  padding: 10px 10px 10px 14px;
+  position: fixed;
+  z-index: 50;
+  animation: cabinet-toast-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cabinet-toast--success {
+  background: #f0f8f3;
+  border-color: #b8ddc4;
+  color: #1d6537;
+}
+
+.cabinet-toast--warning {
+  background: #fff8e7;
+  border-color: #ead49c;
+  color: #775516;
+}
+
+.cabinet-toast--error {
+  background: #fff2f1;
+  border-color: #efc0bc;
+  color: #9a2f27;
+}
+
+.submit-progress-dot {
+  animation: submit-progress-pulse 800ms ease-in-out infinite alternate;
+  background: currentColor;
+  border-radius: 999px;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+@keyframes cabinet-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes submit-progress-pulse {
+  from {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 input,
 select,
 textarea {
@@ -89,5 +169,10 @@ table {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  button:not(:disabled):active,
+  a[class*="inline-flex"]:active {
+    transform: none;
   }
 }

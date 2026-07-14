@@ -4,8 +4,8 @@
 
 ## 1. Current State
 
-- Updated: `2026-07-13`
-- Phase: `Production public rating redesign with isolated fixture demo`
+- Updated: `2026-07-14`
+- Phase: `Admin feedback and competition creation hardening`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
@@ -102,6 +102,9 @@
 - Pagination transitions preserve the current scroll position; `/` redirects to the unfiltered `/leaderboard` as the public home screen.
 - Age filters normalize `M/W` prefixes but never recompute `rank`; the 35–39 demo view displays nonconsecutive absolute positions.
 - Browser checks passed at 1440/1280, 768 and 390 px; 390 and 768 px have no horizontal overflow.
+- Buttons now have a consistent pressed state with reduced-motion fallback; primary admin create forms expose a pending label and prevent duplicate submission.
+- The cabinet shows short success, warning and error toasts for competition, athlete, administrator and directory actions.
+- Competition creation now redirects with explicit success or failure feedback; a failed protocol import no longer hides an already-created competition and instead opens it with a warning.
 
 ## 5. Open Gaps
 
@@ -172,3 +175,4 @@
 - `2026-07-13`: isolated fixture provider adopted for design review; real Supabase remains read-only and unchanged.
 - `2026-07-13`: third rating design selected with a single left navigation rail and absolute, nonconsecutive rank positions inside age filters.
 - `2026-07-13`: redesigned rating deployed to `https://cycleoncup.vercel.app`; production health and runtime-error checks passed.
+- `2026-07-14`: standardized button press feedback and cabinet toasts; competition creation now distinguishes creation failures from protocol-import warnings.

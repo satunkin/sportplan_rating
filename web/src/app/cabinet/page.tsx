@@ -14,6 +14,7 @@ import { CompetitionCreateForm } from "@/app/cabinet/competitions/competition-cr
 import { ScoreBreakdown } from "@/components/score-breakdown";
 import { TechnicalNote } from "@/components/technical-note";
 import { DemoCabinetPreview } from "@/components/demo-cabinet-preview";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import {
   getAthleteProfileByUserId,
   getPublicAthleteProfile,
@@ -193,9 +194,11 @@ export default async function CabinetPage({
                     </select>
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" minLength={8} name="password" placeholder="Временный пароль" required type="password" />
                   </div>
-                  <button className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-surface-strong" type="submit">
-                    Создать пользователя-спортсмена
-                  </button>
+                  <PendingSubmitButton
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-surface-strong"
+                    idleLabel="Создать пользователя-спортсмена"
+                    pendingLabel="Создаём спортсмена…"
+                  />
                 </form>
               </article>
 
@@ -206,9 +209,11 @@ export default async function CabinetPage({
                 <form action={createAdminUserByAdmin} className="mt-5 grid gap-4">
                   <input className="rounded-2xl border border-border bg-white px-4 py-3" name="email" placeholder="Email администратора" required type="email" />
                   <input className="rounded-2xl border border-border bg-white px-4 py-3" minLength={8} name="password" placeholder="Пароль администратора" required type="password" />
-                  <button className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-surface-strong" type="submit">
-                    Выдать права администратора
-                  </button>
+                  <PendingSubmitButton
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold text-accent-strong transition hover:bg-surface-strong"
+                    idleLabel="Выдать права администратора"
+                    pendingLabel="Создаём администратора…"
+                  />
                 </form>
               </article>
             </div>

@@ -4,6 +4,7 @@ import {
   changeDirectoryStatus,
   createDirectory,
 } from "@/app/cabinet/management-actions";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { listAdminDirectories } from "@/lib/cyclon-service";
 import { hasAdminSession } from "@/lib/session";
 
@@ -36,9 +37,11 @@ export default async function AdminDirectoriesPage() {
                 <input name="type" type="hidden" value={section.type} />
                 <input className="min-h-10 border border-border px-3" name="name" placeholder="Название" required />
                 <input className="min-h-10 border border-border px-3" name="websiteUrl" placeholder="Сайт, если есть" type="url" />
-                <button className="min-h-10 rounded-md bg-accent px-4 text-sm font-semibold text-white" type="submit">
-                  Добавить
-                </button>
+                <PendingSubmitButton
+                  className="min-h-10 rounded-md bg-accent px-4 text-sm font-semibold text-white"
+                  idleLabel="Добавить"
+                  pendingLabel="Добавляем…"
+                />
               </form>
               <div className="divide-y divide-border">
                 {section.items.map((item) => (

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { logoutAdmin } from "@/app/cabinet/actions";
+import { CabinetToast } from "@/components/cabinet-toast";
 import { hasAdminSession } from "@/lib/session";
 
 const adminNavigationLinks = [
@@ -21,6 +23,9 @@ export default async function CabinetLayout({
 
   return (
     <>
+      <Suspense fallback={null}>
+        <CabinetToast />
+      </Suspense>
       {isAdmin ? (
         <div className="border-b border-border bg-surface/95">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-2 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
