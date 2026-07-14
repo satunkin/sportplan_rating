@@ -28,8 +28,7 @@ import {
 } from "@/lib/public-cache";
 import { importProtocolForEvent } from "@/lib/protocol-import/import-source-protocol";
 import {
-  calculateLagPercent,
-  calculatePoints,
+  calculateResultPoints,
   getDisciplineCategories,
   SCORE_RULES,
 } from "@/lib/scoring";
@@ -302,6 +301,7 @@ async function ensureScoreRuleSeed(seasonId: string) {
       update: {
         basePoints: rule.basePoints,
         eventCategoryId: eventCategory.id,
+        formulaVersion: "v2-tz-bonus",
       },
       create: {
         id: `${seasonId}:${rule.discipline}:${rule.categoryKey}`,
@@ -310,6 +310,7 @@ async function ensureScoreRuleSeed(seasonId: string) {
         categoryKey: rule.categoryKey,
         basePoints: rule.basePoints,
         eventCategoryId: eventCategory.id,
+        formulaVersion: "v2-tz-bonus",
       },
     });
   }
@@ -1025,6 +1026,18 @@ export async function listPendingSubmissions() {
             group.groupKey === submission.ageGroupClaimed ||
             group.label === submission.ageGroupClaimed,
         )?.fifthPlaceTimeSeconds ?? null,
+      suggestedFirstPlaceTimeSeconds:
+        eventMatches[index]?.protocolGroups.find(
+          (group) =>
+            group.groupKey === submission.ageGroupClaimed ||
+            group.label === submission.ageGroupClaimed,
+        )?.firstPlaceTimeSeconds ?? null,
+      suggestedGroupFinishersCount:
+        eventMatches[index]?.protocolGroups.find(
+          (group) =>
+            group.groupKey === submission.ageGroupClaimed ||
+            group.label === submission.ageGroupClaimed,
+        )?.finishersCount ?? null,
     },
   }));
 }
@@ -1148,6 +1161,8 @@ export async function reviewSubmission(
   scoringInput?: {
     categoryKey: string;
     fifthPlaceTime: string;
+    firstPlaceTime?: string;
+    groupFinishersCount?: string;
     eventLocation?: string;
     placementOverall?: string;
     placementInAgeGroup?: string;
@@ -1195,8 +1210,14 @@ export async function reviewSubmission(
         seasonId: string;
         scoreRule: Awaited<ReturnType<typeof prisma.scoreRule.findFirst>>;
         eventCategory: Awaited<ReturnType<typeof prisma.eventCategory.findFirst>>;
-        fifthPlaceTimeSeconds: number;
-        lagPercent: number;
+        firstPlaceTimeSeconds: number;
+        fifthPlaceTimeSeconds: number | null;
+        groupFinishersCount: number;
+        lagPercent: number | null;
+        ratingPoints: number;
+        bonusPoints: number;
+        competitionCoefficient: number | null;
+        adjustmentFactor: number;
         awardedPoints: number;
       }
     | undefined;
@@ -1211,16 +1232,25 @@ export async function reviewSubmission(
       discipline: submissionBefore.discipline,
       distanceLabel: submissionBefore.distanceLabel,
     });
-    const protocolBenchmark = matchedEvent?.protocolGroups.find(
+    const protocolGroup = matchedEvent?.protocolGroups.find(
       (group) =>
         group.groupKey === submissionBefore.ageGroupClaimed ||
         group.label === submissionBefore.ageGroupClaimed,
-    )?.fifthPlaceTimeSeconds;
+    );
+    const protocolBenchmark = protocolGroup?.fifthPlaceTimeSeconds;
     const benchmarkInput =
       scoringInput?.fifthPlaceTime ||
       (protocolBenchmark ? String(protocolBenchmark) : "");
+    const groupFinishersCount =
+      protocolGroup?.finishersCount ??
+      Number.parseInt(scoringInput?.groupFinishersCount ?? "", 10);
 
-    if (!scoringInput?.categoryKey || !benchmarkInput) {
+    if (
+      !scoringInput?.categoryKey ||
+      !Number.isInteger(groupFinishersCount) ||
+      groupFinishersCount < 1 ||
+      (groupFinishersCount >= 5 && !benchmarkInput)
+    ) {
       throw new Error("SCORING_INPUT_REQUIRED");
     }
 
@@ -1234,11 +1264,21 @@ export async function reviewSubmission(
       throw new Error("MANUAL_REVIEW_REASON_REQUIRED");
     }
 
-    const fifthPlaceTimeSeconds = protocolBenchmark
-      ? protocolBenchmark
-      : parseTimeToSeconds(benchmarkInput);
+    const firstPlaceTimeSeconds =
+      protocolGroup?.firstPlaceTimeSeconds ??
+      parseTimeToSeconds(scoringInput?.firstPlaceTime ?? "");
+    const fifthPlaceTimeSeconds =
+      groupFinishersCount < 5
+        ? null
+        : protocolBenchmark
+          ? protocolBenchmark
+          : parseTimeToSeconds(benchmarkInput);
 
-    if (fifthPlaceTimeSeconds === null) {
+    if (firstPlaceTimeSeconds === null) {
+      throw new Error("INVALID_FIRST_PLACE_TIME");
+    }
+
+    if (groupFinishersCount >= 5 && fifthPlaceTimeSeconds === null) {
       throw new Error("INVALID_FIFTH_PLACE_TIME");
     }
 
@@ -1264,19 +1304,25 @@ export async function reviewSubmission(
       },
     });
 
-    const lagPercent = calculateLagPercent(
-      submissionBefore.finishTimeSeconds,
-      fifthPlaceTimeSeconds,
-    );
-    const awardedPoints = calculatePoints(scoreRule.basePoints, lagPercent);
+    const points = calculateResultPoints({
+      basePoints: scoreRule.basePoints,
+      athleteFinishSeconds: submissionBefore.finishTimeSeconds,
+      firstPlaceSeconds: firstPlaceTimeSeconds,
+      fifthPlaceSeconds: fifthPlaceTimeSeconds,
+      groupFinishersCount,
+      placementInAgeGroup: scoringInput.placementInAgeGroup
+        ? Number.parseInt(scoringInput.placementInAgeGroup, 10)
+        : submissionBefore.placementInAgeGroup,
+    });
 
     preparedApproval = {
       seasonId: season.id,
       scoreRule,
       eventCategory,
+      firstPlaceTimeSeconds,
       fifthPlaceTimeSeconds,
-      lagPercent,
-      awardedPoints,
+      groupFinishersCount,
+      ...points,
     };
   }
 
@@ -1369,8 +1415,20 @@ export async function reviewSubmission(
         eventId: event.id,
         eventCategoryId: preparedApproval.eventCategory?.id,
         ageGroupUsed: submission.ageGroupClaimed,
+        firstPlaceTimeSeconds: preparedApproval.firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds: preparedApproval.fifthPlaceTimeSeconds,
-        lagPercent: new Prisma.Decimal(preparedApproval.lagPercent),
+        groupFinishersCount: preparedApproval.groupFinishersCount,
+        lagPercent:
+          preparedApproval.lagPercent === null
+            ? null
+            : new Prisma.Decimal(preparedApproval.lagPercent),
+        ratingPoints: preparedApproval.ratingPoints,
+        bonusPoints: preparedApproval.bonusPoints,
+        competitionCoefficient:
+          preparedApproval.competitionCoefficient === null
+            ? null
+            : new Prisma.Decimal(preparedApproval.competitionCoefficient),
+        adjustmentFactor: new Prisma.Decimal(preparedApproval.adjustmentFactor),
         awardedPoints: preparedApproval.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: preparedApproval.scoreRule!.id,
@@ -1384,8 +1442,20 @@ export async function reviewSubmission(
         eventId: event.id,
         eventCategoryId: preparedApproval.eventCategory?.id,
         ageGroupUsed: submission.ageGroupClaimed,
+        firstPlaceTimeSeconds: preparedApproval.firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds: preparedApproval.fifthPlaceTimeSeconds,
-        lagPercent: new Prisma.Decimal(preparedApproval.lagPercent),
+        groupFinishersCount: preparedApproval.groupFinishersCount,
+        lagPercent:
+          preparedApproval.lagPercent === null
+            ? null
+            : new Prisma.Decimal(preparedApproval.lagPercent),
+        ratingPoints: preparedApproval.ratingPoints,
+        bonusPoints: preparedApproval.bonusPoints,
+        competitionCoefficient:
+          preparedApproval.competitionCoefficient === null
+            ? null
+            : new Prisma.Decimal(preparedApproval.competitionCoefficient),
+        adjustmentFactor: new Prisma.Decimal(preparedApproval.adjustmentFactor),
         awardedPoints: preparedApproval.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: preparedApproval.scoreRule!.id,
@@ -1415,7 +1485,9 @@ export async function reviewSubmission(
         athleteId: submission.athleteId,
         eventNameRaw: submissionBefore.eventNameRaw,
         categoryKey: scoringInput?.categoryKey ?? null,
+        firstPlaceTime: scoringInput?.firstPlaceTime ?? null,
         fifthPlaceTime: scoringInput?.fifthPlaceTime ?? null,
+        groupFinishersCount: scoringInput?.groupFinishersCount ?? null,
         moderationFlags: scoringInput?.moderationFlags ?? null,
       },
     },
@@ -1787,11 +1859,18 @@ export async function seedDemoScenario() {
       protocolUrl: item.protocolUrl,
     });
 
-    const lagPercent = calculateLagPercent(
+    const firstPlaceTimeSeconds = Math.min(
       finishTimeSeconds,
-      fifthPlaceTimeSeconds,
+      Math.round(fifthPlaceTimeSeconds * 0.9),
     );
-    const awardedPoints = calculatePoints(scoreRule.basePoints, lagPercent);
+    const points = calculateResultPoints({
+      basePoints: scoreRule.basePoints,
+      athleteFinishSeconds: finishTimeSeconds,
+      firstPlaceSeconds: firstPlaceTimeSeconds,
+      fifthPlaceSeconds: fifthPlaceTimeSeconds,
+      groupFinishersCount: 12,
+      placementInAgeGroup: null,
+    });
 
     await prisma.verifiedResult.upsert({
       where: {
@@ -1803,9 +1882,15 @@ export async function seedDemoScenario() {
         eventId: event.id,
         eventCategoryId: category.id,
         ageGroupUsed: item.ageGroupClaimed,
+        firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds,
-        lagPercent: new Prisma.Decimal(lagPercent),
-        awardedPoints,
+        groupFinishersCount: 12,
+        lagPercent: new Prisma.Decimal(points.lagPercent!),
+        ratingPoints: points.ratingPoints,
+        bonusPoints: points.bonusPoints,
+        competitionCoefficient: new Prisma.Decimal(points.competitionCoefficient!),
+        adjustmentFactor: new Prisma.Decimal(points.adjustmentFactor),
+        awardedPoints: points.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: scoreRule.id,
       },
@@ -1816,9 +1901,15 @@ export async function seedDemoScenario() {
         eventId: event.id,
         eventCategoryId: category.id,
         ageGroupUsed: item.ageGroupClaimed,
+        firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds,
-        lagPercent: new Prisma.Decimal(lagPercent),
-        awardedPoints,
+        groupFinishersCount: 12,
+        lagPercent: new Prisma.Decimal(points.lagPercent!),
+        ratingPoints: points.ratingPoints,
+        bonusPoints: points.bonusPoints,
+        competitionCoefficient: new Prisma.Decimal(points.competitionCoefficient!),
+        adjustmentFactor: new Prisma.Decimal(points.adjustmentFactor),
+        awardedPoints: points.awardedPoints,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: scoreRule.id,
       },
@@ -2727,24 +2818,29 @@ export async function createSubmissionByAdmin(
   input: ResultSubmissionInput,
 ) {
   await ensureDatabaseReady();
-  const categoryKey = input.fifthPlaceTime?.trim()
+  const shouldCalculatePoints = Boolean(
+    input.firstPlaceTime?.trim() && input.groupFinishersCount?.trim(),
+  );
+  const categoryKey = shouldCalculatePoints
     ? await resolveAdminScoringCategoryKey(input)
     : null;
 
-  if (input.fifthPlaceTime?.trim() && !categoryKey) {
+  if (shouldCalculatePoints && !categoryKey) {
     throw new Error("SCORING_CATEGORY_REQUIRED");
   }
 
   const submission = await createResultSubmissionForAthlete(athleteId, input);
 
-  if (input.fifthPlaceTime?.trim() && categoryKey) {
+  if (shouldCalculatePoints && categoryKey) {
     await reviewSubmission(
       submission.id,
       "approve",
       input.comment || "Ручной расчет из карточки спортсмена.",
       {
         categoryKey,
-        fifthPlaceTime: input.fifthPlaceTime,
+        firstPlaceTime: input.firstPlaceTime,
+        fifthPlaceTime: input.fifthPlaceTime ?? "",
+        groupFinishersCount: input.groupFinishersCount,
         placementOverall: input.placementOverall,
         placementInAgeGroup: input.placementInAgeGroup,
         moderationFlags: {
@@ -2780,14 +2876,17 @@ export async function updateSubmissionByAdmin(
     throw new Error("SUBMISSION_NOT_FOUND");
   }
 
-  const categoryKey = input.fifthPlaceTime?.trim()
+  const shouldCalculatePoints = Boolean(
+    input.firstPlaceTime?.trim() && input.groupFinishersCount?.trim(),
+  );
+  const categoryKey = shouldCalculatePoints
     ? await resolveAdminScoringCategoryKey(
         input,
         submission.verifiedResult?.scoreRule.categoryKey,
       )
     : null;
 
-  if (input.fifthPlaceTime?.trim() && !categoryKey) {
+  if (shouldCalculatePoints && !categoryKey) {
     throw new Error("SCORING_CATEGORY_REQUIRED");
   }
 
@@ -2798,14 +2897,16 @@ export async function updateSubmissionByAdmin(
     input,
   );
 
-  if (input.fifthPlaceTime?.trim() && categoryKey) {
+  if (shouldCalculatePoints && categoryKey) {
     await reviewSubmission(
       submission.id,
       "approve",
       input.comment || "Ручной перерасчет из карточки спортсмена.",
       {
         categoryKey,
-        fifthPlaceTime: input.fifthPlaceTime,
+        firstPlaceTime: input.firstPlaceTime,
+        fifthPlaceTime: input.fifthPlaceTime ?? "",
+        groupFinishersCount: input.groupFinishersCount,
         placementOverall: input.placementOverall,
         placementInAgeGroup: input.placementInAgeGroup,
         moderationFlags: {

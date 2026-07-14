@@ -145,6 +145,7 @@ export async function persistNormalizedProtocolForEvent(params: {
 
   for (const [groupKey, group] of groupedRows) {
     group.finishTimes.sort((left, right) => left - right);
+    const firstPlaceTimeSeconds = group.finishTimes[0] ?? null;
     const fifthPlaceTimeSeconds = group.finishTimes[4] ?? null;
 
     await prisma.protocolGroup.create({
@@ -153,7 +154,9 @@ export async function persistNormalizedProtocolForEvent(params: {
         groupKey,
         label: group.label,
         gender: group.gender,
+        firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds,
+        finishersCount: group.finishTimes.length,
         benchmarkSource: fifthPlaceTimeSeconds
           ? BenchmarkSource.PROTOCOL
           : null,

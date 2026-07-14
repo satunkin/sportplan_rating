@@ -234,7 +234,12 @@ export async function saveGroupBenchmark(formData: FormData) {
   const competitionId = String(formData.get("competitionId") ?? "");
   await updateProtocolGroupBenchmark({
     groupId: String(formData.get("groupId") ?? ""),
+    firstPlaceTime: String(formData.get("firstPlaceTime") ?? ""),
     fifthPlaceTime: String(formData.get("fifthPlaceTime") ?? ""),
+    finishersCount: Number.parseInt(
+      String(formData.get("finishersCount") ?? ""),
+      10,
+    ),
     notes: String(formData.get("notes") ?? ""),
   });
   refreshPublicAndAdmin();

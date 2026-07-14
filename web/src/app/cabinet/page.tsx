@@ -643,9 +643,13 @@ export default async function CabinetPage({
                         ageGroupUsed={submission.verifiedResult.ageGroupUsed}
                         awardedPoints={submission.verifiedResult.awardedPoints}
                         basePoints={submission.verifiedResult.scoreRule.basePoints}
+                        bonusPoints={submission.verifiedResult.bonusPoints}
                         compact
+                        competitionCoefficient={submission.verifiedResult.competitionCoefficient?.toString() ?? null}
                         fifthPlaceTimeSeconds={submission.verifiedResult.fifthPlaceTimeSeconds}
-                        lagPercent={submission.verifiedResult.lagPercent.toString()}
+                        groupFinishersCount={submission.verifiedResult.groupFinishersCount}
+                        lagPercent={submission.verifiedResult.lagPercent?.toString() ?? null}
+                        ratingPoints={submission.verifiedResult.ratingPoints}
                       />
                     ) : null}
                   </div>

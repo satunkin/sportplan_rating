@@ -1151,17 +1151,30 @@ export async function importAdminCompetitionDistanceProtocol(
 export async function updateProtocolGroupBenchmark(input: {
   groupId: string;
   fifthPlaceTime: string;
+  firstPlaceTime: string;
+  finishersCount: number;
   notes?: string;
 }) {
-  const fifthPlaceTimeSeconds = parseTimeToSeconds(input.fifthPlaceTime);
-  if (fifthPlaceTimeSeconds === null) {
+  const firstPlaceTimeSeconds = parseTimeToSeconds(input.firstPlaceTime);
+  const fifthPlaceTimeSeconds = input.fifthPlaceTime.trim()
+    ? parseTimeToSeconds(input.fifthPlaceTime)
+    : null;
+  if (firstPlaceTimeSeconds === null) {
+    throw new Error("INVALID_FIRST_PLACE_TIME");
+  }
+  if (input.finishersCount < 1 || !Number.isInteger(input.finishersCount)) {
+    throw new Error("INVALID_GROUP_FINISHERS_COUNT");
+  }
+  if (input.finishersCount >= 5 && fifthPlaceTimeSeconds === null) {
     throw new Error("INVALID_FIFTH_PLACE_TIME");
   }
 
   return prisma.protocolGroup.update({
     where: { id: input.groupId },
     data: {
+      firstPlaceTimeSeconds,
       fifthPlaceTimeSeconds,
+      finishersCount: input.finishersCount,
       benchmarkSource: "ADMIN",
       benchmarkNotes: input.notes?.trim() || null,
     },

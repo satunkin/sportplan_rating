@@ -247,7 +247,9 @@ model ProtocolGroup {
   gender                Gender?
   minAge                Int?
   maxAge                Int?
+  firstPlaceTimeSeconds Int?
   fifthPlaceTimeSeconds Int?
+  finishersCount        Int?
   benchmarkSource       BenchmarkSource?
   benchmarkNotes        String?
   createdAt             DateTime        @default(now())
@@ -301,8 +303,14 @@ model VerifiedResult {
   eventId              String
   eventCategoryId      String?
   ageGroupUsed         String
-  fifthPlaceTimeSeconds Int
-  lagPercent           Decimal
+  firstPlaceTimeSeconds Int?
+  fifthPlaceTimeSeconds Int?
+  groupFinishersCount   Int?
+  lagPercent            Decimal?
+  ratingPoints          Int?
+  bonusPoints           Int?
+  competitionCoefficient Decimal?
+  adjustmentFactor      Decimal?
   awardedPoints        Int
   verificationMode     VerificationMode
   scoreRuleId          String

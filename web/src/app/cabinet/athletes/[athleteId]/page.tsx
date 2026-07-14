@@ -323,16 +323,20 @@ export default async function AdminAthletePage({
                     ageGroupUsed={submission.verifiedResult.ageGroupUsed}
                     awardedPoints={submission.verifiedResult.awardedPoints}
                     basePoints={submission.verifiedResult.scoreRule.basePoints}
+                    bonusPoints={submission.verifiedResult.bonusPoints}
                     compact
+                    competitionCoefficient={submission.verifiedResult.competitionCoefficient?.toString() ?? null}
                     fifthPlaceTimeSeconds={submission.verifiedResult.fifthPlaceTimeSeconds}
-                    lagPercent={submission.verifiedResult.lagPercent.toString()}
+                    groupFinishersCount={submission.verifiedResult.groupFinishersCount}
+                    lagPercent={submission.verifiedResult.lagPercent?.toString() ?? null}
+                    ratingPoints={submission.verifiedResult.ratingPoints}
                   />
                 ) : null}
 
                 <form action={saveAthleteSubmissionByAdmin} className="mt-5 grid gap-4 border-t border-border pt-5">
                   <input name="athleteId" type="hidden" value={athlete.id} />
                   <input name="submissionId" type="hidden" value={submission.id} />
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-4">
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.eventNameRaw} name="eventName" required />
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={formatSubmissionDate(submission.eventDate)} name="eventDate" required />
                   </div>
@@ -354,7 +358,7 @@ export default async function AdminAthletePage({
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.placementOverall ?? ""} name="placementOverall" />
                     <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.placementInAgeGroup ?? ""} name="placementInAgeGroup" />
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-4">
                     <select className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.verifiedResult?.scoreRule.categoryKey ?? ""} name="categoryKey">
                       <option value="">
                         Категория рейтинга: авто
@@ -368,7 +372,19 @@ export default async function AdminAthletePage({
                     <input
                       className="rounded-2xl border border-border bg-white px-4 py-3"
                       defaultValue={
-                        submission.verifiedResult
+                        submission.verifiedResult?.firstPlaceTimeSeconds
+                          ? formatDurationFromSeconds(
+                              submission.verifiedResult.firstPlaceTimeSeconds,
+                            )
+                          : ""
+                      }
+                      name="firstPlaceTime"
+                      placeholder="Результат 1 места"
+                    />
+                    <input
+                      className="rounded-2xl border border-border bg-white px-4 py-3"
+                      defaultValue={
+                        submission.verifiedResult?.fifthPlaceTimeSeconds
                           ? formatDurationFromSeconds(
                               submission.verifiedResult.fifthPlaceTimeSeconds,
                             )
@@ -376,6 +392,14 @@ export default async function AdminAthletePage({
                       }
                       name="fifthPlaceTime"
                       placeholder="Результат 5 места в группе"
+                    />
+                    <input
+                      className="rounded-2xl border border-border bg-white px-4 py-3"
+                      defaultValue={submission.verifiedResult?.groupFinishersCount ?? ""}
+                      min="1"
+                      name="groupFinishersCount"
+                      placeholder="Финишеров в группе"
+                      type="number"
                     />
                   </div>
                   <input className="rounded-2xl border border-border bg-white px-4 py-3" defaultValue={submission.protocolUrl ?? ""} name="protocolUrl" type="url" />
