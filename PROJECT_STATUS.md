@@ -84,7 +84,7 @@
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
 - SMTP is not required for the Telegram-first production flow; health/deploy readiness no longer warns when SMTP is absent.
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
-- Production deployment `https://cycleoncup.vercel.app` is live at commit `255205d`; `/api/health` returns `200` with no blockers or warnings.
+- Production deployment `https://cycleoncup.vercel.app` is live with the admin-feedback release from commit `b1f6b1c`; `/api/health` returns `200` with no blockers or warnings.
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
@@ -176,3 +176,4 @@
 - `2026-07-13`: third rating design selected with a single left navigation rail and absolute, nonconsecutive rank positions inside age filters.
 - `2026-07-13`: redesigned rating deployed to `https://cycleoncup.vercel.app`; production health and runtime-error checks passed.
 - `2026-07-14`: standardized button press feedback and cabinet toasts; competition creation now distinguishes creation failures from protocol-import warnings.
+- `2026-07-14`: admin-feedback release `b1f6b1c` deployed to Vercel production; deployment is `Ready` and the stable health endpoint reports no blockers or warnings.
