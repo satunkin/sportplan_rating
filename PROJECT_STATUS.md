@@ -5,7 +5,7 @@
 ## 1. Current State
 
 - Updated: `2026-07-14`
-- Phase: `Technical-spec scoring formula implementation`
+- Phase: `Protocol grouping production release`
 - App: `/Users/satunkin/Codex_projects/rating/web`
 - Stack: Next.js 16 App Router, React 19, Tailwind CSS 4, Prisma 7, PostgreSQL/Supabase.
 - Brand and active season: `Кубок Циклон · 2026`.
@@ -15,8 +15,9 @@
 - Telegram webhook is implemented at `/api/telegram/webhook`; production bot token, webhook secret and public bot URL are configured in Vercel, and the webhook is registered.
 - Deployment target is Vercel Hobby with Supabase; masterhost remains responsible for domain registration, DNS management and existing mail/legacy hosting.
 - Additive Supabase migration `20260620120000_cyclon_competitions_telegram` is applied.
+- Scoring migration `20260714170000_tz_scoring_formula` is applied to production Supabase; all 7 migrations are current.
 - Supabase security hardening is applied: all current app tables have RLS enabled, and broad `anon` / `authenticated` / `service_role` table grants were revoked.
-- Supabase was rechecked read-only after resume: connection and `SELECT 1` succeed; all 6 migrations are applied; RLS is enabled on required tables.
+- Supabase was rechecked after the scoring release: the connection succeeds, all 7 migrations are applied and RLS remains enabled on required tables.
 - Current Supabase data: `6` competitions, `7` distances, `0` orphan distances, `14,803` protocol rows, `264` protocol groups, `0` athletes, `0` submissions and `0` verified results.
 - Local deploy-readiness has one expected warning/blocker: `APP_BASE_URL` points to localhost.
 - Existing user changes present before this implementation were preserved.
@@ -85,7 +86,7 @@
 - Vercel project `sportplan-rating` builds the GitHub repository with Root Directory `web`.
 - SMTP is not required for the Telegram-first production flow; health/deploy readiness no longer warns when SMTP is absent.
 - Local lint, Prisma validation, production build and deployment-readiness check with `APP_BASE_URL=https://plansporta.ru` pass.
-- Production deployment `https://cycleoncup.vercel.app` is live with the admin-feedback release from commit `b1f6b1c`; `/api/health` returns `200` with no blockers or warnings.
+- Production deployment `https://cycleoncup.vercel.app` is live with protocol-group release `5fbb629`; `/api/health` returns `200` with no blockers or warnings, and the IronStar competition page returns `200` with separate male and female sections.
 - Production Telegram variables are stored in Vercel; unsigned webhook requests correctly return `401`.
 - Telegram webhook points to `https://sportplan-rating.vercel.app/api/telegram/webhook`; `getWebhookInfo` reports no delivery errors and an empty pending queue.
 - Root `.vercelignore` prevents local `.env`, build output and local UX artifacts from entering manual CLI deployments.
@@ -130,8 +131,7 @@
 - Remaining public pages still use parts of the older large-radius visual language and can be brought to the new compact system in a later slice.
 - Filtering and pagination still happen in application memory for Prisma data; PostgreSQL-side filtering/pagination remains planned.
 - Service modules, SQLite dependencies, tracked generated Prisma client and migration history still need the planned cleanup.
-- Migration `20260714170000_tz_scoring_formula` is implemented but not yet applied to production; existing awarded totals remain unchanged during migration and receive bonuses only after a result is recalculated with complete group data.
-- Existing production protocols have not yet been reprocessed with the new universal group classifier; this is deliberately deferred until the code and scoring migration are deployed.
+- Existing production protocols have not yet been reprocessed with the new universal group classifier; the code and scoring migration are deployed, but mass reprocessing remains a deliberate separate operation.
 
 ## 6. Demo Snapshot
 
@@ -162,7 +162,7 @@
 9. Move public filtering and pagination to PostgreSQL and add graceful database-unavailable fallbacks.
 10. Remove SQLite dependencies/generated Prisma artifacts and simplify migration history in a dedicated infrastructure change.
 11. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
-12. Deploy the universal protocol grouping and apply `20260714170000_tz_scoring_formula` to Supabase; then reprocess existing protocols and verify male, female, special and absolute group counts before recalculating results.
+12. Reprocess existing protocols with the deployed classifier and verify male, female, special and absolute group counts before recalculating results.
 
 ## 9. Decision Log
 
@@ -193,3 +193,4 @@
 - `2026-07-14`: technical-spec scoring v2 implemented; first-place bonus is 120% of category base, places 2–4 use consecutive KKVГ powers, and existing production totals are preserved until deliberate recalculation.
 - `2026-07-14`: production Supabase athlete data was reset and duplicate competitions were consolidated; 2 athlete accounts and 12 duplicate competition rows were removed, leaving 6 unique competitions and 7 linked distances.
 - `2026-07-14`: protocol import now preserves organizer-defined grouping across four supported formats instead of forcing five-year categories; groups with fewer than five finishers remain visible and score zero.
+- `2026-07-14`: protocol-group release `5fbb629` deployed to Vercel production and scoring migration applied to Supabase; production health and IronStar page checks passed, while mass protocol reprocessing remains deferred.
