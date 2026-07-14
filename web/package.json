@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:scoring": "node --experimental-strip-types --test src/lib/scoring.test.ts",
+    "test:protocol-groups": "node --experimental-strip-types --test src/lib/protocol-groups.test.ts",
     "admin:hash-password": "node scripts/hash-admin-password.mjs",
     "deploy:check": "node scripts/check-deploy-readiness.mjs",
     "db:deploy": "prisma migrate deploy --config prisma.config.ts",

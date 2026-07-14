@@ -53,6 +53,7 @@
 - Shared product logic for Telegram and new public/admin flows lives in `web/src/lib/cyclon-service.ts`.
 - Public pages use the same service interface with an internal provider switch: Prisma normally, deterministic in-memory fixtures only under `npm run dev:demo`.
 - Protocol import continues through organizer parsers and now rebuilds `ProtocolGroup` records after import.
+- Protocol grouping preserves organizer-defined categories and supports broad male/female groups, standard age groups, one absolute group and custom gender-specific ranges; Elite/Para remain separate.
 - Migration fallback command: `npm run db:apply:cyclon-migration`; verification: `npm run db:check:cyclon-migration`.
 
 ## 4. Implemented
@@ -107,6 +108,9 @@
 - Competition creation now redirects with explicit success or failure feedback; a failed protocol import no longer hides an already-created competition and instead opens it with a warning.
 - Rating points now follow the full technical-spec formula: base decay, bonuses for age-group places 1–4, KKVГ adjustment for groups of 5–10 and zero points for groups with fewer than 5 finishers.
 - Protocol groups store first-place time and finisher count in addition to the fifth-place benchmark; imports populate all three values automatically.
+- Protocol group parsing now reliably detects male and female categories, keeps custom ranges separated by gender and retains groups with fewer than five finishers for display and zero-point scoring.
+- Competition pages show male and female protocol groups in separate visible sections without the former constrained scroll area; small groups are labeled with their finisher count and 0 points.
+- Added focused protocol-group tests covering all four supported organizer formats and special categories.
 - Verified results store the scoring breakdown (rating points, bonus, KKVГ and adjustment factor), and admin moderation can confirm missing group inputs manually.
 - Added focused scoring tests and additive migration `20260714170000_tz_scoring_formula`; local tests, Prisma validation, lint and production build pass.
 - Production Supabase cleanup removed all athlete accounts and their dependent submissions/results/ranking rows, then merged duplicate competition records by normalized name and date. Final integrity check: 6 competitions, 7 distances, no orphan distances and no duplicate groups.
@@ -127,13 +131,14 @@
 - Filtering and pagination still happen in application memory for Prisma data; PostgreSQL-side filtering/pagination remains planned.
 - Service modules, SQLite dependencies, tracked generated Prisma client and migration history still need the planned cleanup.
 - Migration `20260714170000_tz_scoring_formula` is implemented but not yet applied to production; existing awarded totals remain unchanged during migration and receive bonuses only after a result is recalculated with complete group data.
+- Existing production protocols have not yet been reprocessed with the new universal group classifier; this is deliberately deferred until the code and scoring migration are deployed.
 
 ## 6. Demo Snapshot
 
 - Supabase contains no newly generated design data; fixture preview is memory-only.
 - Production mode uses real Supabase data and does not display or activate fixture records.
 - Fixture snapshot: 120 athletes, 12 competitions, 20 distances, 420 results, 8 clubs, 12 coaches and 5 moderation examples.
-- Current real data remains separate: 6 competitions, 7 distances, 14,539 protocol rows, 243 protocol groups, 3 submissions and 3 verified results.
+- Current real data remains separate: 6 competitions, 7 distances, 14,803 protocol rows, 264 protocol groups, 0 athletes, 0 submissions and 0 verified results.
 
 ## 7. Working Rules For Future Chats
 
@@ -157,7 +162,7 @@
 9. Move public filtering and pagination to PostgreSQL and add graceful database-unavailable fallbacks.
 10. Remove SQLite dependencies/generated Prisma artifacts and simplify migration history in a dedicated infrastructure change.
 11. Monitor the hourly Airtable PR workflow: each run processes all available `Todo` cards sequentially, moving each through `In progress` to `On review` after creating its dedicated Draft PR; a separate monitor marks cards `Done` only after their PRs are merged into `main`.
-12. Apply `20260714170000_tz_scoring_formula` to Supabase, re-import protocols to populate group competition data, then deliberately recalculate existing verified results.
+12. Deploy the universal protocol grouping and apply `20260714170000_tz_scoring_formula` to Supabase; then reprocess existing protocols and verify male, female, special and absolute group counts before recalculating results.
 
 ## 9. Decision Log
 
@@ -187,3 +192,4 @@
 - `2026-07-14`: admin-feedback release `b1f6b1c` deployed to Vercel production; deployment is `Ready` and the stable health endpoint reports no blockers or warnings.
 - `2026-07-14`: technical-spec scoring v2 implemented; first-place bonus is 120% of category base, places 2–4 use consecutive KKVГ powers, and existing production totals are preserved until deliberate recalculation.
 - `2026-07-14`: production Supabase athlete data was reset and duplicate competitions were consolidated; 2 athlete accounts and 12 duplicate competition rows were removed, leaving 6 unique competitions and 7 linked distances.
+- `2026-07-14`: protocol import now preserves organizer-defined grouping across four supported formats instead of forcing five-year categories; groups with fewer than five finishers remain visible and score zero.

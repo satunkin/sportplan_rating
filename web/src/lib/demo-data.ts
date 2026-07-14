@@ -260,20 +260,33 @@ export function getDemoCompetition(competitionId: string) {
         ...distance,
         category: null,
         _count: { protocolRows: 180 + distanceIndex * 70 },
-        protocolGroups: ageBands.slice(0, 6).map((band, groupIndex) => ({
-          id: `${distance.id}-group-${groupIndex + 1}`,
-          eventId: distance.id,
-          groupKey: band,
-          label: band,
-          gender: null,
-          minAge: null,
-          maxAge: null,
-          fifthPlaceTimeSeconds: 2300 + groupIndex * 180,
-          benchmarkSource: "PROTOCOL" as const,
-          benchmarkNotes: null,
-          createdAt: DEMO_NOW,
-          updatedAt: DEMO_NOW,
-        })),
+        protocolGroups: (["MALE", "FEMALE"] as const).flatMap(
+          (gender, genderIndex) =>
+            ageBands.slice(0, 6).map((band, groupIndex) => {
+              const finishersCount = groupIndex < 2 ? groupIndex + 2 : 8 + groupIndex;
+              const prefix = gender === "MALE" ? "М" : "Ж";
+              const timeOffset = genderIndex * 420 + groupIndex * 180;
+
+              return {
+                id: `${distance.id}-group-${gender.toLowerCase()}-${groupIndex + 1}`,
+                eventId: distance.id,
+                groupKey: `${prefix} ${band}`,
+                label: `${prefix} ${band}`,
+                gender,
+                minAge: null,
+                maxAge: null,
+                firstPlaceTimeSeconds: 2100 + timeOffset,
+                fifthPlaceTimeSeconds:
+                  finishersCount < 5 ? null : 2300 + timeOffset,
+                finishersCount,
+                benchmarkSource:
+                  finishersCount < 5 ? null : ("PROTOCOL" as const),
+                benchmarkNotes: null,
+                createdAt: DEMO_NOW,
+                updatedAt: DEMO_NOW,
+              };
+            }),
+        ),
         participants,
       };
     }),
