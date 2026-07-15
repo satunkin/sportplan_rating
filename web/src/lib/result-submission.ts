@@ -15,7 +15,9 @@ export type ResultSubmissionInput = {
   categoryKey?: string;
   ageGroupClaimed: string;
   finishTime: string;
+  firstPlaceTime?: string;
   fifthPlaceTime?: string;
+  groupFinishersCount?: string;
   protocolUrl: string;
   placementOverall: string;
   placementInAgeGroup: string;
@@ -115,7 +117,9 @@ export function validateResultSubmission(
   const categoryKey = normalizeSpace(input.categoryKey ?? "");
   const ageGroupClaimed = normalizeSpace(input.ageGroupClaimed);
   const finishTime = input.finishTime.trim();
+  const firstPlaceTime = (input.firstPlaceTime ?? "").trim();
   const fifthPlaceTime = (input.fifthPlaceTime ?? "").trim();
+  const groupFinishersCount = (input.groupFinishersCount ?? "").trim();
   const protocolUrl = input.protocolUrl.trim();
   const placementOverall = input.placementOverall.trim();
   const placementInAgeGroup = input.placementInAgeGroup.trim();
@@ -163,6 +167,18 @@ export function validateResultSubmission(
     fieldErrors.fifthPlaceTime = message;
   }
 
+  if (firstPlaceTime && !isValidTime(firstPlaceTime)) {
+    const message = "Время победителя должно быть в формате мм:сс или чч:мм:сс.";
+    errors.push(message);
+    fieldErrors.firstPlaceTime = message;
+  }
+
+  if (groupFinishersCount && !isValidPlacement(groupFinishersCount)) {
+    const message = "Количество финишеров должно быть положительным числом.";
+    errors.push(message);
+    fieldErrors.groupFinishersCount = message;
+  }
+
   if (protocolUrl && !isValidUrl(protocolUrl)) {
     const message = "Если ссылка на протокол указана, она должна быть корректной.";
     errors.push(message);
@@ -195,7 +211,9 @@ export function validateResultSubmission(
       categoryKey,
       ageGroupClaimed,
       finishTime,
+      firstPlaceTime,
       fifthPlaceTime,
+      groupFinishersCount,
       protocolUrl,
       placementOverall,
       placementInAgeGroup,

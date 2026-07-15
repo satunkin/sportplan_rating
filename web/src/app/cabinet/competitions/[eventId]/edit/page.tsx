@@ -105,7 +105,7 @@ export default async function AdminCompetitionEditPage({
                 {distance.protocolGroups.map((group) => (
                   <form
                     action={saveGroupBenchmark}
-                    className="grid gap-3 border border-border px-4 py-4 md:grid-cols-[1fr_180px_1fr_auto]"
+                    className="grid gap-3 border border-border px-4 py-4 md:grid-cols-[1fr_160px_160px_120px_1fr_auto]"
                     key={group.id}
                   >
                     <input name="competitionId" type="hidden" value={competition.id} />
@@ -118,10 +118,25 @@ export default async function AdminCompetitionEditPage({
                     </div>
                     <input
                       className="min-h-10 border border-border px-3"
+                      defaultValue={formatSeconds(group.firstPlaceTimeSeconds)}
+                      name="firstPlaceTime"
+                      placeholder="Время 1-го места"
+                      required
+                    />
+                    <input
+                      className="min-h-10 border border-border px-3"
                       defaultValue={formatSeconds(group.fifthPlaceTimeSeconds)}
                       name="fifthPlaceTime"
                       placeholder="Время 5-го места"
+                    />
+                    <input
+                      className="min-h-10 border border-border px-3"
+                      defaultValue={group.finishersCount ?? ""}
+                      min="1"
+                      name="finishersCount"
+                      placeholder="Финишеров"
                       required
+                      type="number"
                     />
                     <input
                       className="min-h-10 border border-border px-3"

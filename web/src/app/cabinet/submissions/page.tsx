@@ -93,10 +93,19 @@ export default async function AdminSubmissionsPage({
           </div>
         ) : null}
 
+        {error === "invalid_first_place_time" ? (
+          <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
+            Не удалось разобрать время победителя группы
+            {submissionId ? ` для заявки ${submissionId}` : ""}. Используйте
+            формат вроде `39:20` или `01:22:10`.
+          </div>
+        ) : null}
+
         {error === "missing_scoring_input" ? (
           <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800">
-            Для подтверждения заявки нужны категория дистанции и время 5-го
-            места{submissionId ? ` (${submissionId})` : ""}.
+            Для подтверждения заявки нужны категория дистанции, время
+            победителя и количество финишеров. Для состоявшейся группы также
+            нужно время 5-го места{submissionId ? ` (${submissionId})` : ""}.
           </div>
         ) : null}
 
@@ -129,6 +138,14 @@ export default async function AdminSubmissionsPage({
                     submission.moderationSummary.suggestedFifthPlaceTimeSeconds,
                   )
                 : "";
+              const firstPlaceTime = submission.moderationSummary
+                .suggestedFirstPlaceTimeSeconds
+                ? formatDurationFromSeconds(
+                    submission.moderationSummary.suggestedFirstPlaceTimeSeconds,
+                  )
+                : "";
+              const groupFinishersCount =
+                submission.moderationSummary.suggestedGroupFinishersCount;
               const hasAgeGroupMismatch =
                 !submission.moderationSummary.claimedAgeGroupMatchesProfile &&
                 Boolean(submission.moderationSummary.profileAgeGroup);
@@ -138,6 +155,8 @@ export default async function AdminSubmissionsPage({
               const quickApproveReady = Boolean(
                 submission.moderationSummary.matchedEventCategoryKey &&
                   benchmarkTime &&
+                  firstPlaceTime &&
+                  groupFinishersCount !== null &&
                   !requiresManualNotes,
               );
               const isExpanded = submissionId === submission.id;
@@ -222,6 +241,12 @@ export default async function AdminSubmissionsPage({
                           value={submission.moderationSummary.matchedEventCategoryKey ?? ""}
                         />
                         <input name="fifthPlaceTime" type="hidden" value={benchmarkTime} />
+                        <input name="firstPlaceTime" type="hidden" value={firstPlaceTime} />
+                        <input
+                          name="groupFinishersCount"
+                          type="hidden"
+                          value={groupFinishersCount ?? ""}
+                        />
                         <input
                           name="eventLocation"
                           type="hidden"
@@ -417,10 +442,25 @@ export default async function AdminSubmissionsPage({
                               </select>
                               <input
                                 className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
+                                name="firstPlaceTime"
+                                placeholder="Время победителя группы, например 38:10"
+                                defaultValue={firstPlaceTime}
+                                required
+                              />
+                              <input
+                                className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
                                 name="fifthPlaceTime"
                                 placeholder="Время 5-го места, например 41:50"
                                 defaultValue={benchmarkTime}
+                              />
+                              <input
+                                className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
+                                defaultValue={groupFinishersCount ?? ""}
+                                min="1"
+                                name="groupFinishersCount"
+                                placeholder="Количество финишеров в группе"
                                 required
+                                type="number"
                               />
                               <input
                                 className="rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-accent"
@@ -477,8 +517,8 @@ export default async function AdminSubmissionsPage({
                                   type="checkbox"
                                 />
                                 <span>
-                                  В группе меньше 5 финишеров, поэтому benchmark
-                                  подтверждается вручную администратором.
+                                  В группе меньше 5 финишеров: подтверждаю
+                                  результат с нулём рейтинговых и бонусных очков.
                                 </span>
                               </label>
                               <button

@@ -79,13 +79,35 @@ function parseTimeToSeconds(value) {
 }
 
 function calculatePoints(basePoints, athleteFinishSeconds, fifthPlaceSeconds) {
+  const firstPlaceSeconds = Math.min(
+    athleteFinishSeconds,
+    Math.round(fifthPlaceSeconds * 0.9),
+  );
   const lagPercent = Math.max(
     0,
     ((athleteFinishSeconds - fifthPlaceSeconds) / fifthPlaceSeconds) * 100,
   );
+  const competitionCoefficient = Math.min(
+    1,
+    Math.max(
+      0,
+      Number(
+        (1 - (fifthPlaceSeconds - firstPlaceSeconds) / firstPlaceSeconds).toFixed(3),
+      ),
+    ),
+  );
+  const ratingPoints = Math.max(
+    0,
+    Math.round(basePoints * Math.exp(-0.077 * lagPercent)),
+  );
   return {
+    firstPlaceSeconds,
     lagPercent: Number(lagPercent.toFixed(2)),
-    points: Math.max(0, Math.round(basePoints * Math.exp(-0.077 * lagPercent))),
+    ratingPoints,
+    bonusPoints: 0,
+    competitionCoefficient,
+    adjustmentFactor: 1,
+    points: ratingPoints,
   };
 }
 
@@ -307,7 +329,7 @@ async function main() {
       },
     });
 
-    const { lagPercent, points } = calculatePoints(
+    const score = calculatePoints(
       rule.basePoints,
       finishTimeSeconds,
       parseTimeToSeconds(fifthPlaceTime),
@@ -323,9 +345,15 @@ async function main() {
         eventId: event.id,
         eventCategoryId: category.id,
         ageGroupUsed: ageGroup,
+        firstPlaceTimeSeconds: score.firstPlaceSeconds,
         fifthPlaceTimeSeconds: parseTimeToSeconds(fifthPlaceTime),
-        lagPercent,
-        awardedPoints: points,
+        groupFinishersCount: 12,
+        lagPercent: score.lagPercent,
+        ratingPoints: score.ratingPoints,
+        bonusPoints: score.bonusPoints,
+        competitionCoefficient: score.competitionCoefficient,
+        adjustmentFactor: score.adjustmentFactor,
+        awardedPoints: score.points,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: rule.id,
       },
@@ -336,9 +364,15 @@ async function main() {
         eventId: event.id,
         eventCategoryId: category.id,
         ageGroupUsed: ageGroup,
+        firstPlaceTimeSeconds: score.firstPlaceSeconds,
         fifthPlaceTimeSeconds: parseTimeToSeconds(fifthPlaceTime),
-        lagPercent,
-        awardedPoints: points,
+        groupFinishersCount: 12,
+        lagPercent: score.lagPercent,
+        ratingPoints: score.ratingPoints,
+        bonusPoints: score.bonusPoints,
+        competitionCoefficient: score.competitionCoefficient,
+        adjustmentFactor: score.adjustmentFactor,
+        awardedPoints: score.points,
         verificationMode: VerificationMode.MANUAL,
         scoreRuleId: rule.id,
       },

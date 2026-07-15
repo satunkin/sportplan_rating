@@ -107,14 +107,20 @@ export default function RulesPage() {
               Формула MVP
             </p>
             <div className="mt-5 rounded-[1.5rem] border border-white/18 bg-white/10 px-5 py-5">
-              <p className="text-2xl font-semibold">result score</p>
+              <p className="text-2xl font-semibold">Очки за результат</p>
               <p className="mt-3 text-sm leading-7 text-white/88">
-                `round(basePoints * exp(-0.077 * lagPercent))`
+                Рейтинговые очки: `round(basePoints × exp(-0.077 × lagPercent))`.
+                Для мест 1–4 добавляется бонус, зависящий от плотности группы.
               </p>
             </div>
             <p className="mt-5 text-sm leading-7 text-white/82">
               Если спортсмен быстрее результата 5-го места, штрафа нет:
-              `lagPercent = 0`, а старт получает максимум своей категории.
+              `lagPercent = 0`, а рейтинговая часть получает максимум базы
+              своей категории.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-white/82">
+              В группе 5–10 человек вся сумма умножается на ККВГ. Если
+              финишеров меньше пяти, результат получает 0 очков.
             </p>
           </article>
         </section>

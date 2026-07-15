@@ -1,7 +1,7 @@
 import { Discipline, EntityStatus } from "@prisma/client";
 
 import type { PublicLeaderboardRow } from "@/lib/public-data-types";
-import { calculatePoints, SCORE_RULES } from "@/lib/scoring";
+import { calculateResultPoints, SCORE_RULES } from "@/lib/scoring";
 
 const DEMO_NOW = new Date("2026-07-13T09:30:00.000Z");
 
@@ -133,7 +133,17 @@ function createAthleteRows(gender: "MALE" | "FEMALE") {
     const results = Array.from({ length: resultCount }, (_, resultIndex) => {
       const rule = SCORE_RULES[(index * 3 + resultIndex * 5) % SCORE_RULES.length];
       const lagPercent = ((index * 7 + resultIndex * 11) % 23) + (resultIndex % 2) * 0.35;
-      const points = calculatePoints(rule.basePoints, lagPercent);
+      const ageGroupPlacement = ((index + resultIndex * 3) % 18) + 1;
+      const groupFinishersCount = 5 + ((index + resultIndex * 2) % 12);
+      const fifthPlaceSeconds = 11_000;
+      const points = calculateResultPoints({
+        basePoints: rule.basePoints,
+        athleteFinishSeconds: Math.round(fifthPlaceSeconds * (1 + lagPercent / 100)),
+        firstPlaceSeconds: 10_000,
+        fifthPlaceSeconds,
+        groupFinishersCount,
+        placementInAgeGroup: ageGroupPlacement,
+      }).awardedPoints;
       const competition = demoCompetitions[(index + resultIndex * 2) % 6];
       const distance = competition.distances[resultIndex % competition.distances.length];
       const baseSeconds = 2100 + ((index * 317 + resultIndex * 643) % 12500);
@@ -144,7 +154,7 @@ function createAthleteRows(gender: "MALE" | "FEMALE") {
         eventName: competition.name,
         distanceLabel: distance.distanceLabel,
         finishTime: formatDuration(baseSeconds),
-        ageGroupPlacement: ((index + resultIndex * 3) % 18) + 1,
+        ageGroupPlacement,
         points,
         counted: false,
       };
@@ -250,20 +260,33 @@ export function getDemoCompetition(competitionId: string) {
         ...distance,
         category: null,
         _count: { protocolRows: 180 + distanceIndex * 70 },
-        protocolGroups: ageBands.slice(0, 6).map((band, groupIndex) => ({
-          id: `${distance.id}-group-${groupIndex + 1}`,
-          eventId: distance.id,
-          groupKey: band,
-          label: band,
-          gender: null,
-          minAge: null,
-          maxAge: null,
-          fifthPlaceTimeSeconds: 2300 + groupIndex * 180,
-          benchmarkSource: "PROTOCOL" as const,
-          benchmarkNotes: null,
-          createdAt: DEMO_NOW,
-          updatedAt: DEMO_NOW,
-        })),
+        protocolGroups: (["MALE", "FEMALE"] as const).flatMap(
+          (gender, genderIndex) =>
+            ageBands.slice(0, 6).map((band, groupIndex) => {
+              const finishersCount = groupIndex < 2 ? groupIndex + 2 : 8 + groupIndex;
+              const prefix = gender === "MALE" ? "М" : "Ж";
+              const timeOffset = genderIndex * 420 + groupIndex * 180;
+
+              return {
+                id: `${distance.id}-group-${gender.toLowerCase()}-${groupIndex + 1}`,
+                eventId: distance.id,
+                groupKey: `${prefix} ${band}`,
+                label: `${prefix} ${band}`,
+                gender,
+                minAge: null,
+                maxAge: null,
+                firstPlaceTimeSeconds: 2100 + timeOffset,
+                fifthPlaceTimeSeconds:
+                  finishersCount < 5 ? null : 2300 + timeOffset,
+                finishersCount,
+                benchmarkSource:
+                  finishersCount < 5 ? null : ("PROTOCOL" as const),
+                benchmarkNotes: null,
+                createdAt: DEMO_NOW,
+                updatedAt: DEMO_NOW,
+              };
+            }),
+        ),
         participants,
       };
     }),

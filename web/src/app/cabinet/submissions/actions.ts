@@ -13,6 +13,7 @@ type InlineReviewResult =
       ok: false;
       code:
         | "duplicate_verified_submission"
+        | "invalid_first_place_time"
         | "invalid_fifth_place_time"
         | "missing_scoring_input"
         | "manual_review_reason_required"
@@ -40,6 +41,18 @@ function revalidateModerationViews() {
 }
 
 function mapReviewError(error: unknown): InlineReviewResult {
+  if (
+    error instanceof Error &&
+    error.message === "INVALID_FIRST_PLACE_TIME"
+  ) {
+    return {
+      ok: false,
+      code: "invalid_first_place_time",
+      message:
+        "Не удалось разобрать время победителя. Откройте редактирование и укажите корректный формат.",
+    };
+  }
+
   if (
     error instanceof Error &&
     error.message === "DUPLICATE_VERIFIED_SUBMISSION"
@@ -101,7 +114,11 @@ export async function approveSubmission(formData: FormData) {
   const submissionId = String(formData.get("submissionId") ?? "");
   const notes = String(formData.get("notes") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
+  const firstPlaceTime = String(formData.get("firstPlaceTime") ?? "");
   const fifthPlaceTime = String(formData.get("fifthPlaceTime") ?? "");
+  const groupFinishersCount = String(
+    formData.get("groupFinishersCount") ?? "",
+  );
   const eventLocation = String(formData.get("eventLocation") ?? "");
   const placementOverall = String(formData.get("placementOverall") ?? "");
   const placementInAgeGroup = String(
@@ -117,7 +134,9 @@ export async function approveSubmission(formData: FormData) {
   try {
     await reviewSubmission(submissionId, "approve", notes, {
       categoryKey,
+      firstPlaceTime,
       fifthPlaceTime,
+      groupFinishersCount,
       eventLocation,
       placementOverall,
       placementInAgeGroup,
@@ -128,6 +147,17 @@ export async function approveSubmission(formData: FormData) {
       },
     });
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_FIRST_PLACE_TIME"
+    ) {
+      redirect(
+        `/cabinet/submissions?error=invalid_first_place_time&submissionId=${encodeURIComponent(
+          submissionId,
+        )}`,
+      );
+    }
+
     if (
       error instanceof Error &&
       error.message === "DUPLICATE_VERIFIED_SUBMISSION"
@@ -196,7 +226,11 @@ export async function approveSubmissionInline(
   const submissionId = String(formData.get("submissionId") ?? "");
   const notes = String(formData.get("notes") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
+  const firstPlaceTime = String(formData.get("firstPlaceTime") ?? "");
   const fifthPlaceTime = String(formData.get("fifthPlaceTime") ?? "");
+  const groupFinishersCount = String(
+    formData.get("groupFinishersCount") ?? "",
+  );
   const eventLocation = String(formData.get("eventLocation") ?? "");
   const placementOverall = String(formData.get("placementOverall") ?? "");
   const placementInAgeGroup = String(
@@ -206,7 +240,9 @@ export async function approveSubmissionInline(
   try {
     await reviewSubmission(submissionId, "approve", notes, {
       categoryKey,
+      firstPlaceTime,
       fifthPlaceTime,
+      groupFinishersCount,
       eventLocation,
       placementOverall,
       placementInAgeGroup,

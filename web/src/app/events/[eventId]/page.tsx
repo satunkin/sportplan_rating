@@ -1,9 +1,86 @@
 import { notFound } from "next/navigation";
 
 import { getPublicCompetition } from "@/lib/cyclon-service";
+import { splitProtocolGroupsForDisplay } from "@/lib/protocol-groups";
 import { formatDate, formatDurationFromSeconds } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
+
+type PublicProtocolGroup = {
+  id: string;
+  label: string;
+  gender: "MALE" | "FEMALE" | null;
+  fifthPlaceTimeSeconds: number | null;
+  finishersCount: number | null;
+};
+
+function getFinishersLabel(count: number) {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} финишеров`;
+  if (lastDigit === 1) return `${count} финишер`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} финишера`;
+  return `${count} финишеров`;
+}
+
+function ProtocolGroups({ groups }: { groups: PublicProtocolGroup[] }) {
+  const sections = splitProtocolGroupsForDisplay(groups);
+
+  return (
+    <details className="mt-3 text-sm text-muted">
+      <summary className="cursor-pointer font-semibold text-accent">
+        Группы протокола · {groups.length}
+      </summary>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {sections.map((section) => (
+          <section className="border border-border bg-white" key={section.key}>
+            <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
+              <h3 className="font-semibold text-foreground">{section.label}</h3>
+              <span className="text-xs tabular-nums text-muted">
+                {section.groups.length}
+              </span>
+            </div>
+            <div>
+              {section.groups.map((group) => {
+                const isSmallGroup =
+                  group.finishersCount !== null && group.finishersCount < 5;
+
+                return (
+                  <div
+                    className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4"
+                    key={group.id}
+                  >
+                    <span className="font-medium text-foreground">
+                      {group.label}
+                    </span>
+                    <span className="text-xs leading-5 sm:text-right">
+                      {isSmallGroup ? (
+                        <>
+                          {getFinishersLabel(group.finishersCount!)} · 0 очков
+                        </>
+                      ) : group.fifthPlaceTimeSeconds ? (
+                        <>
+                          5-е место ·{" "}
+                          <span className="tabular-nums text-foreground">
+                            {formatDurationFromSeconds(
+                              group.fifthPlaceTimeSeconds,
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        "Данные группы уточняются"
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    </details>
+  );
+}
 
 export default async function CompetitionPage({
   params,
@@ -60,29 +137,7 @@ export default async function CompetitionPage({
                   {distance.distanceLabel}
                 </h2>
                 {distance.protocolGroups.length ? (
-                  <details className="mt-3 text-sm text-muted">
-                    <summary className="cursor-pointer font-semibold text-accent">
-                      Группы и benchmark пятого места ·{" "}
-                      {distance.protocolGroups.length}
-                    </summary>
-                    <div className="mt-3 max-h-72 overflow-auto border border-border bg-white">
-                      {distance.protocolGroups.map((group) => (
-                        <div
-                          className="grid grid-cols-[minmax(0,1fr)_110px] gap-3 border-b border-border px-3 py-2 last:border-b-0"
-                          key={group.id}
-                        >
-                          <span>{group.label}</span>
-                          <span className="text-right tabular-nums text-foreground">
-                            {group.fifthPlaceTimeSeconds
-                              ? formatDurationFromSeconds(
-                                  group.fifthPlaceTimeSeconds,
-                                )
-                              : "меньше 5"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
+                  <ProtocolGroups groups={distance.protocolGroups} />
                 ) : null}
               </div>
 

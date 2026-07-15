@@ -88,13 +88,19 @@ For each verified result the system must:
 
 Each result uses:
 - a `base_points` value determined by distance category;
-- a decay based on percentage lag from the `5th place` in the age group.
+- a decay based on percentage lag from the `5th place` in the age group;
+- a place bonus for positions `1-4` based on the age-group competition coefficient.
 
-MVP scoring formula:
-- `result_score = round(base_points * exp(-0.077 * lag_percent))`
+Scoring formula:
+- `rating_points = round(base_points * exp(-0.077 * lag_percent))`
 - `lag_percent = max(0, ((athlete_finish_time - fifth_place_time) / fifth_place_time) * 100)`
+- `competition_coefficient = 1 - ((fifth_place_time - first_place_time) / first_place_time)`
+- the first-place bonus equals `base_points * 1.2`; bonuses for places `2-4` use consecutive powers of the competition coefficient
+- with `11+` finishers: `result_score = rating_points + bonus_points`
+- with `5-10` finishers: both components are multiplied by the competition coefficient
+- with fewer than `5` finishers: `result_score = 0`
 - if the athlete is faster than the benchmark, `lag_percent` is treated as `0`
-- the maximum score for one result equals the category `base_points`
+- the maximum score equals `base_points + first_place_bonus`
 - the minimum score for one result equals `0`
 
 MVP benchmark and eligibility rules:
@@ -105,7 +111,7 @@ MVP benchmark and eligibility rules:
 - `DNS`, `DNF`, and `DSQ` results are not eligible for scoring
 
 MVP ambiguous-case policy:
-- if an age group has fewer than `5` finishers, the result cannot be auto-scored and must remain in admin review
+- if an age group has fewer than `5` finishers, a verified result receives `0` points
 - if the organizer merged age groups in the published protocol, the result must remain in admin review until explicitly confirmed
 - if there is no public protocol, the result may only be accepted through manual admin verification
 - duplicate submissions for the same athlete and event must not create more than one counted verified result

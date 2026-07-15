@@ -1,11 +1,14 @@
-import { BenchmarkSource, type Gender } from "@prisma/client";
+import { BenchmarkSource } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import {
+  groupProtocolRows,
+  inferProtocolGender,
+} from "@/lib/protocol-groups";
 import { fetchNormalizedProtocolFromSource } from "@/lib/protocol-import/parser-runtime.mjs";
 import { parseTimeToSeconds } from "@/lib/time";
 import type {
   NormalizedEventProtocol,
-  NormalizedProtocolRow,
 } from "@/lib/protocol-import/types";
 
 type SourceProtocolImportSummary = {
@@ -15,35 +18,6 @@ type SourceProtocolImportSummary = {
   rowsWithParsedTime: number;
   sourceUrl: string;
 };
-
-function inferGender(row: NormalizedProtocolRow): Gender | null {
-  const candidates = [row.genderRaw, row.ageGroupRaw]
-    .map((value) => String(value ?? "").trim().toUpperCase())
-    .filter(Boolean);
-
-  for (const value of candidates) {
-    if (
-      value.startsWith("M") ||
-      value.startsWith("М") ||
-      value === "MALE" ||
-      value === "MAN"
-    ) {
-      return "MALE";
-    }
-
-    if (
-      value.startsWith("W") ||
-      value.startsWith("F") ||
-      value.startsWith("Ж") ||
-      value === "FEMALE" ||
-      value === "WOMAN"
-    ) {
-      return "FEMALE";
-    }
-  }
-
-  return null;
-}
 
 function normalizePlacement(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -87,7 +61,7 @@ export async function persistNormalizedProtocolForEvent(params: {
     finishTimeRaw: row.finishTimeRaw.trim(),
     finishTimeSeconds: parseTimeToSeconds(row.finishTimeRaw),
     ageGroupRaw: row.ageGroupRaw?.trim() || null,
-    gender: inferGender(row),
+    gender: inferProtocolGender(row),
     placementOverall: normalizePlacement(row.placeOverall),
     placementInAgeGroup: normalizePlacement(row.placeAgeGroup),
   }));
@@ -111,49 +85,26 @@ export async function persistNormalizedProtocolForEvent(params: {
     });
   }
 
-  const groupedRows = new Map<
-    string,
-    {
-      label: string;
-      gender: Gender | null;
-      finishTimes: number[];
-    }
-  >();
-
-  for (const row of rows) {
-    const groupKey = row.ageGroupRaw || row.gender || "OPEN";
-    const group: {
-      label: string;
-      gender: Gender | null;
-      finishTimes: number[];
-    } = groupedRows.get(groupKey) ?? {
-      label: row.ageGroupRaw || row.gender || "Открытая группа",
-      gender: row.gender,
-      finishTimes: [],
-    };
-
-    if (row.finishTimeSeconds !== null) {
-      group.finishTimes.push(row.finishTimeSeconds);
-    }
-
-    groupedRows.set(groupKey, group);
-  }
+  const groupedRows = groupProtocolRows(rows);
 
   await prisma.protocolGroup.deleteMany({
     where: { eventId: params.eventId },
   });
 
-  for (const [groupKey, group] of groupedRows) {
+  for (const group of groupedRows) {
     group.finishTimes.sort((left, right) => left - right);
+    const firstPlaceTimeSeconds = group.finishTimes[0] ?? null;
     const fifthPlaceTimeSeconds = group.finishTimes[4] ?? null;
 
     await prisma.protocolGroup.create({
       data: {
         eventId: params.eventId,
-        groupKey,
+        groupKey: group.groupKey,
         label: group.label,
         gender: group.gender,
+        firstPlaceTimeSeconds,
         fifthPlaceTimeSeconds,
+        finishersCount: group.finishTimes.length,
         benchmarkSource: fifthPlaceTimeSeconds
           ? BenchmarkSource.PROTOCOL
           : null,
